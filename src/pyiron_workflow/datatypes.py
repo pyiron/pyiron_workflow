@@ -128,6 +128,12 @@ PortType = TypeVar("PortType", bound=Port)
 class PortMap(lexical.LexicalMap[PortType, lexical.OwnerType]): ...
 
 
+class InputMap(PortMap[InputPort, lexical.OwnerType], Generic[lexical.OwnerType]): ...
+
+
+class OutputMap(PortMap[OutputPort, lexical.OwnerType], Generic[lexical.OwnerType]): ...
+
+
 RecipeType = TypeVar(
     "RecipeType",
     fr.schemas.AtomicRecipe,
@@ -156,11 +162,11 @@ class Node(
 
     @property
     @abc.abstractmethod
-    def inputs(self) -> lexical.LexicalMap[InputPort, Any]: ...
+    def inputs(self) -> InputMap[Any]: ...
 
     @property
     @abc.abstractmethod
-    def outputs(self) -> lexical.LexicalMap[OutputPort, Any]: ...
+    def outputs(self) -> OutputMap[Any]: ...
 
     @property
     @abc.abstractmethod
@@ -488,11 +494,11 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
         self._establish_sources(**connections)
 
     @property
-    def inputs(self) -> PortMap[InputPort, Node]:
+    def inputs(self) -> InputMap[Node]:
         return self._inputs
 
     @property
-    def outputs(self) -> PortMap[OutputPort, Node]:
+    def outputs(self) -> OutputMap[Node]:
         return self._outputs
 
     @property
@@ -509,8 +515,8 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
     def generate_flowrep_live_node(self) -> execution.ResultType:
         return self._result_type().from_recipe(self.recipe)
 
-    def _build_inputs(self, live: execution.ResultType) -> PortMap[InputPort, Node]:
-        return PortMap[InputPort, Node](
+    def _build_inputs(self, live: execution.ResultType) -> InputMap[Node]:
+        return InputMap[Node](
             self,
             {
                 label: InputPort(
@@ -528,8 +534,8 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
             },
         )
 
-    def _build_outputs(self, live: execution.ResultType) -> PortMap[OutputPort, Node]:
-        return PortMap[OutputPort, Node](
+    def _build_outputs(self, live: execution.ResultType) -> OutputMap[Node]:
+        return OutputMap[Node](
             self,
             {
                 label: OutputPort(

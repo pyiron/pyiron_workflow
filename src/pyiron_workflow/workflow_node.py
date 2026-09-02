@@ -7,7 +7,7 @@ import functools
 import itertools
 import types
 from collections.abc import Callable, MutableMapping
-from typing import TYPE_CHECKING, Any, Self, cast
+from typing import TYPE_CHECKING, Any, Generic, Self, cast
 
 import flowrep as fr
 import semantikon
@@ -44,10 +44,19 @@ def is_nodelike(value: object) -> bool:
     )
 
 
-class MutablePortMap(
-    datatypes.PortMap[datatypes.PortType, "Workflow"],
+class _MutablePortMap(
     MutableMapping[fr.schemas.Label, datatypes.PortType],
+    Generic[datatypes.PortType],
 ):
+    """
+    Mutation behaviour for a `Workflow`-owned port map.
+    Avoids a diamond inheritance structure, but attribute declaration must stay
+    synced with `datatypes.PortMap`.
+    """
+
+    _pwf_lexical_map__data: dict[fr.schemas.Label, datatypes.PortType]
+    _pwf_lexical_map__owner: Workflow
+
     def __setitem__(self, key: fr.schemas.Label, value: datatypes.PortType):
         if key in self._pwf_lexical_map__data:
             raise _duplicate_entry_error(self._pwf_lexical_map__owner, key, "port")
@@ -61,6 +70,16 @@ class MutablePortMap(
 
     def __delitem__(self, key: fr.schemas.Label):
         del self._pwf_lexical_map__data[key]
+
+
+class MutableInputMap(
+    datatypes.InputMap["Workflow"], _MutablePortMap[datatypes.InputPort]
+): ...
+
+
+class MutableOutputMap(
+    datatypes.OutputMap["Workflow"], _MutablePortMap[datatypes.OutputPort]
+): ...
 
 
 class MutableNodeMap(
@@ -124,8 +143,8 @@ class Workflow(datatypes.MutableDag):
     this level.
     """
 
-    _inputs: MutablePortMap[datatypes.InputPort]
-    _outputs: MutablePortMap[datatypes.OutputPort]
+    _inputs: MutableInputMap
+    _outputs: MutableOutputMap
     _nodes: MutableNodeMap
     _edges: datatypes.EdgeList
     _diff_accumulator: actions.GraphDiff | None
@@ -194,8 +213,8 @@ class Workflow(datatypes.MutableDag):
         self._pending_constants = {}
         self.executor = None
         self.last_run = None
-        self._inputs = MutablePortMap[datatypes.InputPort](self)
-        self._outputs = MutablePortMap[datatypes.OutputPort](self)
+        self._inputs = MutableInputMap(self)
+        self._outputs = MutableOutputMap(self)
         self._nodes = MutableNodeMap(self)
         self._edges: datatypes.EdgeList = []
         self._diff_accumulator: actions.GraphDiff | None = None
@@ -250,11 +269,11 @@ class Workflow(datatypes.MutableDag):
             self.add_node(to_add)
 
     @property
-    def inputs(self) -> MutablePortMap[datatypes.InputPort]:
+    def inputs(self) -> MutableInputMap:
         return self._inputs
 
     @property
-    def outputs(self) -> MutablePortMap[datatypes.OutputPort]:
+    def outputs(self) -> MutableOutputMap:
         return self._outputs
 
     @property
@@ -439,11 +458,9 @@ class Workflow(datatypes.MutableDag):
         old: datatypes.InputPort | datatypes.OutputPort,
         new: datatypes.InputPort | datatypes.OutputPort,
     ) -> actions.ReplacePort:
+        target_map: MutableInputMap | MutableOutputMap
         if old.label in self.inputs and self.inputs[old.label] is old:
-            target_map: (
-                MutablePortMap[datatypes.InputPort]
-                | MutablePortMap[datatypes.OutputPort]
-            ) = self.inputs
+            target_map = self.inputs
         elif old.label in self.outputs and self.outputs[old.label] is old:
             target_map = self.outputs
         else:

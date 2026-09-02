@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 import re
 import types
-from typing import TypeAlias, cast
+from typing import Any, TypeAlias, cast
 
 import flowrep as fr
 
@@ -205,8 +205,8 @@ def edgelist2edges(
 
 
 def _copy_port_annotations(
-    src: datatypes.PortMap,
-    dst: datatypes.PortMap,
+    src: datatypes.PortMap[datatypes.PortType, Any],
+    dst: datatypes.PortMap[datatypes.PortType, Any],
 ) -> None:
     """Overwrite each port in `dst` with one carrying the type_hint and
     type_metadata of the same-labelled port in `src`. Mutates `dst` via the
