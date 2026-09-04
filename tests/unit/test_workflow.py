@@ -5,6 +5,7 @@ import contextlib
 import dataclasses
 import pickle
 import unittest
+import warnings
 from concurrent import futures
 
 import flowrep as fr
@@ -14,6 +15,7 @@ from unit import _fixtures
 from pyiron_workflow import (
     actions,
     atomic_node,
+    compatibility,
     constant,
     constructors,
     dag,
@@ -1792,6 +1794,13 @@ class TestWorkflowEvaluate(unittest.TestCase):
     End-to-end evaluation tests for `Workflow`, covering every edge-type scenario.
     """
 
+    def setUp(self) -> None:
+        # Several cases here deliberately run workflows with no output ports, which
+        # warns about the legacy automatic-output behaviour. That warning is the
+        # subject of `TestRunWithoutOutputsWarns`; here it is just noise.
+        self.enterContext(warnings.catch_warnings())
+        warnings.simplefilter("ignore", UserWarning)
+
     def test_empty_workflow_finishes(self) -> None:
         wf = _fixtures.build_workflow()
         run = wf.run()
@@ -3001,6 +3010,150 @@ class TestRealizePendingValidation(unittest.TestCase):
             wf.foo = constructors.node(
                 _fixtures.typed_int, "foo", x=wf.src.outputs["output_0"]
             )
+
+
+class TestSetOutputsToUnconnectedChildOutput(unittest.TestCase):
+    """
+    Legacy pre-flowrep workflows exposed every unconnected child output as a
+    workflow output automatically; this method reproduces that on demand.
+    """
+
+    def setUp(self) -> None:
+        self.wf = workflow_node.Workflow("wf")
+
+    def test_scopes_labels_by_child(self) -> None:
+        self.wf.add_node(_fixtures.atomic_add_node("first"))
+        self.wf.add_node(_fixtures.atomic_add_node("second"))
+        self.wf.set_outputs_to_unconnected_child_output()
+        self.assertEqual(
+            ["first__output_0", "second__output_0"],
+            list(self.wf.outputs),
+            msg="Children sharing a port label must not collide",
+        )
+
+    def test_wires_edge_from_each_dangling_source(self) -> None:
+        self.wf.add_node(_fixtures.atomic_add_node("adder"))
+        self.wf.set_outputs_to_unconnected_child_output()
+        self.assertEqual(
+            [
+                datatypes.EdgeTuple(
+                    fr.schemas.SourceHandle(node="adder", port="output_0"),
+                    fr.schemas.OutputTarget(port="adder__output_0"),
+                )
+            ],
+            self.wf.edges,
+        )
+
+    def test_exposes_every_dangling_port_of_a_multi_output_child(self) -> None:
+        self.wf.add_node(_fixtures.macro_node("multi"))
+        self.wf.set_outputs_to_unconnected_child_output()
+        self.assertEqual(["multi__a", "multi__s"], list(self.wf.outputs))
+
+    def test_child_output_feeding_a_sibling_is_skipped(self) -> None:
+        self.wf.add_node(_fixtures.atomic_add_node("upstream"))
+        self.wf.add_node(_fixtures.atomic_add_node("downstream"))
+        self.wf.connect(self.wf.upstream, self.wf.downstream.inputs.x)
+        self.wf.set_outputs_to_unconnected_child_output()
+        self.assertEqual(
+            ["downstream__output_0"],
+            list(self.wf.outputs),
+            msg="An output already sourcing a sibling edge is not dangling",
+        )
+
+    def test_empty_workflow_gets_no_outputs(self) -> None:
+        self.wf.set_outputs_to_unconnected_child_output()
+        self.assertEqual([], list(self.wf.outputs))
+
+    def test_propagates_type_hint_and_metadata(self) -> None:
+        self.wf.add_node(_fixtures.typed_int_node("ti"))
+        source = self.wf.ti.outputs.output_0
+        self.wf.set_outputs_to_unconnected_child_output()
+        created = self.wf.outputs["ti__output_0"]
+        self.assertEqual(source.type_hint, created.type_hint)
+        self.assertEqual(source.type_metadata, created.type_metadata)
+
+    def test_removes_unrelated_existing_output(self) -> None:
+        self.wf.add_node(_fixtures.atomic_add_node("adder"))
+        self.wf.create_output("junk")
+        self.wf.set_outputs_to_unconnected_child_output()
+        self.assertEqual(["adder__output_0"], list(self.wf.outputs))
+
+    def test_relabels_an_already_exposed_child_output(self) -> None:
+        self.wf.add_node(_fixtures.atomic_add_node("adder"))
+        self.wf.create_output_from(self.wf.adder.outputs.output_0, label="legacy")
+        self.wf.set_outputs_to_unconnected_child_output()
+        self.assertEqual(
+            ["adder__output_0"],
+            list(self.wf.outputs),
+            msg="Removing the old output frees its source to count as dangling again",
+        )
+
+    def test_is_idempotent(self) -> None:
+        self.wf.add_node(_fixtures.atomic_add_node("adder"))
+        self.wf.set_outputs_to_unconnected_child_output()
+        self.wf.set_outputs_to_unconnected_child_output()
+        self.assertEqual(["adder__output_0"], list(self.wf.outputs))
+        self.assertEqual(1, len(self.wf.edges))
+
+    def test_run_produces_the_scoped_output_value(self) -> None:
+        self.wf.add_node(_fixtures.multiply_with_defaults_node("m"))
+        self.wf.set_outputs_to_unconnected_child_output()
+        run = self.wf.run()
+        self.assertEqual(2, run.outputs["m__output_0"])  # 1*2
+
+    def test_undo_restores_the_previous_outputs_in_one_step(self) -> None:
+        self.wf.add_node(_fixtures.atomic_add_node("adder"))
+        self.wf.create_output("junk")
+        edges_before = list(self.wf.edges)
+        self.wf.set_outputs_to_unconnected_child_output()
+        self.wf.undo()
+        self.assertEqual(["junk"], list(self.wf.outputs))
+        self.assertEqual(edges_before, self.wf.edges)
+
+    def test_keeping_existing_output_raises(self) -> None:
+        self.wf.add_node(_fixtures.atomic_add_node("adder"))
+        self.wf.create_output("junk")
+        with self.assertRaisesRegex(
+            ValueError,
+            "'wf' already has output port",
+            msg="Refusing to clobber output should name the workflow",
+        ):
+            self.wf.set_outputs_to_unconnected_child_output(remove_existing=False)
+
+    def test_rejected_call_leaves_the_workflow_untouched(self) -> None:
+        self.wf.add_node(_fixtures.atomic_add_node("adder"))
+        self.wf.create_output_from(self.wf.adder.outputs.output_0, label="legacy")
+        edges_before = list(self.wf.edges)
+        with contextlib.suppress(ValueError):
+            self.wf.set_outputs_to_unconnected_child_output(remove_existing=False)
+        self.assertEqual(["legacy"], list(self.wf.outputs))
+        self.assertEqual(edges_before, self.wf.edges)
+
+    def test_keeping_existing_output_is_fine_when_there_are_none(self) -> None:
+        self.wf.add_node(_fixtures.atomic_add_node("adder"))
+        self.wf.set_outputs_to_unconnected_child_output(remove_existing=False)
+        self.assertEqual(["adder__output_0"], list(self.wf.outputs))
+
+
+class TestRunWithoutOutputsWarns(unittest.TestCase):
+    """Legacy users expect child output to surface without declaring workflow output."""
+
+    def setUp(self) -> None:
+        self.wf = workflow_node.Workflow("wf")
+        self.wf.add_node(_fixtures.multiply_with_defaults_node("m"))
+
+    def test_run_without_outputs_warns(self) -> None:
+        with self.assertWarns(UserWarning) as caught:
+            self.wf.run()
+        message = str(caught.warning)
+        self.assertIn("set_outputs_to_unconnected_child_output", message)
+        self.assertIn(compatibility.DOWNGRADE, message)
+
+    def test_run_with_outputs_does_not_warn(self) -> None:
+        self.wf.set_outputs_to_unconnected_child_output()
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
+            self.wf.run()
 
 
 if __name__ == "__main__":

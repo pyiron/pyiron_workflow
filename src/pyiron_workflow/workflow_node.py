@@ -6,6 +6,7 @@ import dataclasses
 import functools
 import itertools
 import types
+import warnings
 from collections.abc import Callable, MutableMapping
 from typing import TYPE_CHECKING, Any, Generic, Self, cast
 
@@ -336,6 +337,24 @@ class Workflow(datatypes.MutableDag):
             else:
                 annotation = pwf_port.type_hint
             flowrep_port.annotation = annotation
+
+    def run(
+        self, config: execution.RunConfig | None = None, /, **input_data
+    ) -> execution.Run[execution.ResultType]:
+        """Run this workflow, warning first if it has no output to give back."""
+        if len(self.outputs) == 0:
+            from pyiron_workflow import compatibility  # noqa: PLC0415 -- cycle guard
+
+            warnings.warn(
+                f"{self.lexical_path!r} has no output ports, so running it "
+                f"produces no data. Older versions of pyiron_workflow exposed every "
+                f"unconnected child output automatically; call "
+                f"`set_outputs_to_unconnected_child_output` to reproduce that "
+                f"behaviour, or build the output you want with `create_output` and/or "
+                f"`create_output_from`. {compatibility.DOWNGRADE}",
+                stacklevel=2,
+            )
+        return super().run(config, **input_data)
 
     def evaluate(
         self,
@@ -716,6 +735,49 @@ class Workflow(datatypes.MutableDag):
             self._remove_edge(edge)
             self._add_edge(rewritten)
         self._replace_port(resolved, new_port)
+
+    @_undoable
+    def set_outputs_to_unconnected_child_output(
+        self, remove_existing: bool = True
+    ) -> None:
+        """
+        Replace this workflow's output with one port per dangling child output.
+
+        Reproduces the automatic IO of pre-flowrep :mod:`pyiron_workflow`: every child
+        output port that is not already the source of an edge gets a workflow output
+        port of its own, wired to it. New ports are labelled ``"{child}__{port}"`` so
+        that children sharing a port label cannot collide.
+
+        Args:
+            remove_existing (bool): Whether to discard the existing output ports, and
+                the edges feeding them, before rebuilding. (Default is True, discard
+                them; False raises instead when any output port is present.)
+
+        Raises:
+            ValueError: If this workflow already has output and `remove_existing` is
+                False.
+        """
+        existing = list(self.outputs.values())
+        if len(existing) > 0:
+            if not remove_existing:
+                raise ValueError(
+                    f"{self.lexical_path!r} already has output port(s) "
+                    f"{[p.label for p in existing]!r}. Pass `remove_existing=True` to "
+                    f"replace them, or drop them yourself with `remove_output`."
+                )
+            self.remove_output(*existing)
+
+        # Any pre-existing output was just removed along with the edges feeding it (or
+        # we raised), so every child-sourced edge left here feeds a sibling's input.
+        connected = {
+            (edge.source.node, edge.source.port)
+            for edge in self.edges
+            if isinstance(edge.source, fr.schemas.SourceHandle)
+        }
+        for child in self.nodes.values():
+            for port in child.outputs.values():
+                if (child.label, port.label) not in connected:
+                    self.create_output_from(port, label=f"{child.label}__{port.label}")
 
     @_undoable
     def add_port_hint(
