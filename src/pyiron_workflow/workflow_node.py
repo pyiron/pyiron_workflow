@@ -172,6 +172,11 @@ class Workflow(datatypes.MutableDag):
     undo_stack: collections.deque[actions.GraphDiff]
     redo_stack: collections.deque[actions.GraphDiff]
 
+    # Class-level default, so ordinary workflows carry no extra instance state.
+    # Machinery that builds a transient workflow on the user's behalf (`pull`) opts
+    # out, since the legacy-IO nudge is only meaningful for a workflow a user wrote.
+    _warn_legacy_io: bool = True
+
     @classmethod
     def from_recipe(
         cls, recipe: fr.schemas.WorkflowRecipe, label: fr.schemas.Label | None = None, /
@@ -338,21 +343,37 @@ class Workflow(datatypes.MutableDag):
                 annotation = pwf_port.type_hint
             flowrep_port.annotation = annotation
 
+    def _emit_legacy_io_warning(self, message: str) -> None:
+        """Point a caller who expected legacy automatic IO at the modern equivalent.
+
+        `stacklevel=3` so the warning lands on whoever called :meth:`run`: one frame
+        for this helper, one for :meth:`run` itself.
+        """
+        from pyiron_workflow import compatibility  # noqa: PLC0415 -- cycle guard
+
+        warnings.warn(f"{message} {compatibility.DOWNGRADE}", stacklevel=3)
+
     def run(
         self, config: execution.RunConfig | None = None, /, **input_data
     ) -> execution.Run[execution.ResultType]:
-        """Run this workflow, warning first if it has no output to give back."""
-        if len(self.outputs) == 0:
-            from pyiron_workflow import compatibility  # noqa: PLC0415 -- cycle guard
-
-            warnings.warn(
+        """Run this workflow, warning first if it has no IO to speak of."""
+        if self._warn_legacy_io and len(self.inputs) == 0:
+            self._emit_legacy_io_warning(
+                f"{self.lexical_path!r} has no input ports, so running it takes no "
+                f"data. Older versions of pyiron_workflow exposed every unfed child "
+                f"input automatically; call "
+                f"`set_inputs_to_unconnected_child_input` to reproduce that "
+                f"behaviour, or build the input you want with `create_input` and/or "
+                f"`create_input_for`."
+            )
+        if self._warn_legacy_io and len(self.outputs) == 0:
+            self._emit_legacy_io_warning(
                 f"{self.lexical_path!r} has no output ports, so running it "
                 f"produces no data. Older versions of pyiron_workflow exposed every "
                 f"unconnected child output automatically; call "
                 f"`set_outputs_to_unconnected_child_output` to reproduce that "
                 f"behaviour, or build the output you want with `create_output` and/or "
-                f"`create_output_from`. {compatibility.DOWNGRADE}",
-                stacklevel=2,
+                f"`create_output_from`."
             )
         return super().run(config, **input_data)
 
@@ -663,6 +684,57 @@ class Workflow(datatypes.MutableDag):
             self._remove_edge(edge)
             self._add_edge(rewritten)
         self._replace_port(resolved, new_port)
+
+    @_undoable
+    def set_inputs_to_unconnected_child_input(
+        self, remove_existing: bool = True, build_for_defaults: bool = False
+    ) -> None:
+        """
+        Replace this workflow's input with one port per dangling child input.
+
+        Reproduces the automatic IO of pre-flowrep :mod:`pyiron_workflow`: every child
+        input port that is not already the target of an edge gets a workflow input
+        port of its own, wired to it. New ports are labelled ``"{child}__{port}"`` so
+        that children sharing a port label cannot collide. They never carry a default
+        value, even where their child destination has one, since workflow input holds
+        no data of its own.
+
+        Args:
+            remove_existing (bool): Whether to discard the existing input ports, and
+                the edges leaving them, before rebuilding. (Default is True, discard
+                them; False raises instead when any input port is present.)
+            build_for_defaults (bool): Whether to also expose child input that already
+                has a default value available. (Default is False, leave defaulted
+                input to its default.)
+
+        Raises:
+            ValueError: If this workflow already has input and `remove_existing` is
+                False.
+        """
+        existing = list(self.inputs.values())
+        if len(existing) > 0:
+            if not remove_existing:
+                raise ValueError(
+                    f"{self.lexical_path!r} already has input port(s) "
+                    f"{[p.label for p in existing]!r}. Pass `remove_existing=True` to "
+                    f"replace them, or drop them yourself with `remove_input`."
+                )
+            self.remove_input(*existing)
+
+        # Any pre-existing input was just removed along with the edges leaving it (or
+        # we raised), so every child-targeting edge left here comes from a sibling.
+        connected = {
+            (edge.target.node, edge.target.port)
+            for edge in self.edges
+            if isinstance(edge.target, fr.schemas.TargetHandle)
+        }
+        for child in self.nodes.values():
+            for port in child.inputs.values():
+                if (child.label, port.label) in connected:
+                    continue
+                if port.has_default and not build_for_defaults:
+                    continue
+                self.create_input_for(port, label=f"{child.label}__{port.label}")
 
     @_undoable
     def create_output(

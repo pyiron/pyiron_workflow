@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+import warnings
 from concurrent import futures
 
 import flowrep as fr
@@ -310,6 +311,21 @@ class TestPullPublicSurface(unittest.TestCase):
         )
         self.assertEqual(set(api.tools.pulled_inputs(n).keys()), {"x", "y"})
         self.assertIsNotNone(api.tools.pulled_workflow(n))
+
+
+class TestPullDoesNotWarnAboutLegacyIO(unittest.TestCase):
+    """
+    `Workflow.run` nudges legacy users when a workflow has no input or output ports,
+    but pull's transient workflow is machinery rather than something a user authored,
+    and a fully-satisfied cone legitimately exposes no input at all.
+    """
+
+    def test_pulling_a_fully_defaulted_node_is_quiet(self):
+        n = _fixtures.multiply_with_defaults_node()
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
+            run = n.pull()
+        self.assertEqual(run.outputs.output_0, 2)  # 1*2
 
 
 if __name__ == "__main__":

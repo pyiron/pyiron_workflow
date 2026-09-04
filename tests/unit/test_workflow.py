@@ -26,6 +26,22 @@ from pyiron_workflow import (
 )
 
 
+@contextlib.contextmanager
+def _legacy_io_warnings_ignored():
+    """
+    Silence the legacy automatic-IO warnings from running an IO-less workflow.
+
+    A `Workflow` with no input and/or no output ports warns on `run`, to point legacy
+    users at `set_inputs_to_unconnected_child_input` /
+    `set_outputs_to_unconnected_child_output`. Several cases below run such workflows
+    on purpose; the warnings themselves are covered by `TestRunWithoutInputsWarns` and
+    `TestRunWithoutOutputsWarns`.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        yield
+
+
 class TestMutablePortMap(unittest.TestCase):
     def setUp(self) -> None:
         self.wf = workflow_node.Workflow("wf")
@@ -1795,11 +1811,7 @@ class TestWorkflowEvaluate(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        # Several cases here deliberately run workflows with no output ports, which
-        # warns about the legacy automatic-output behaviour. That warning is the
-        # subject of `TestRunWithoutOutputsWarns`; here it is just noise.
-        self.enterContext(warnings.catch_warnings())
-        warnings.simplefilter("ignore", UserWarning)
+        self.enterContext(_legacy_io_warnings_ignored())
 
     def test_empty_workflow_finishes(self) -> None:
         wf = _fixtures.build_workflow()
@@ -2949,7 +2961,9 @@ class TestRealizePendingValidation(unittest.TestCase):
         other.add_node(node)
         other.connect(node, other.outputs.out)
         self.assertIn("foo_x_constant_0", other.nodes)
-        self.assertEqual(7, other.run().outputs.out)
+        with _legacy_io_warnings_ignored():
+            run = other.run()
+        self.assertEqual(7, run.outputs.out)
 
     def test_container_constant_is_admitted(self) -> None:
         wf = workflow_node.Workflow("wf")
@@ -2978,7 +2992,9 @@ class TestRealizePendingValidation(unittest.TestCase):
         other.create_output("out")
         other.add_node(a)
         other.connect(a, other.outputs.out)
-        self.assertEqual(20, other.run().outputs.out)  # 10 * 2, not the default 1 * 2
+        with _legacy_io_warnings_ignored():
+            run = other.run()
+        self.assertEqual(20, run.outputs.out)  # 10 * 2, not the default 1 * 2
 
     def test_failed_realization_on_owned_node_is_not_sticky(self) -> None:
         # The owned branch writes the pending stores before realization can fail; a
@@ -3098,7 +3114,8 @@ class TestSetOutputsToUnconnectedChildOutput(unittest.TestCase):
     def test_run_produces_the_scoped_output_value(self) -> None:
         self.wf.add_node(_fixtures.multiply_with_defaults_node("m"))
         self.wf.set_outputs_to_unconnected_child_output()
-        run = self.wf.run()
+        with _legacy_io_warnings_ignored():
+            run = self.wf.run()
         self.assertEqual(2, run.outputs["m__output_0"])  # 1*2
 
     def test_undo_restores_the_previous_outputs_in_one_step(self) -> None:
@@ -3141,10 +3158,12 @@ class TestRunWithoutOutputsWarns(unittest.TestCase):
     def setUp(self) -> None:
         self.wf = workflow_node.Workflow("wf")
         self.wf.add_node(_fixtures.multiply_with_defaults_node("m"))
+        # Give the workflow input, so only the output warning is in play
+        self.wf.set_inputs_to_unconnected_child_input(build_for_defaults=True)
 
     def test_run_without_outputs_warns(self) -> None:
         with self.assertWarns(UserWarning) as caught:
-            self.wf.run()
+            self.wf.run(m__x=3, m__y=4)
         message = str(caught.warning)
         self.assertIn("set_outputs_to_unconnected_child_output", message)
         self.assertIn(compatibility.DOWNGRADE, message)
@@ -3153,7 +3172,182 @@ class TestRunWithoutOutputsWarns(unittest.TestCase):
         self.wf.set_outputs_to_unconnected_child_output()
         with warnings.catch_warnings():
             warnings.simplefilter("error", UserWarning)
+            self.wf.run(m__x=3, m__y=4)
+
+
+class TestSetInputsToUnconnectedChildInput(unittest.TestCase):
+    """
+    The input counterpart to `TestSetOutputsToUnconnectedChildOutput`; legacy
+    pre-flowrep workflows exposed unfed child input as workflow input automatically.
+    """
+
+    def setUp(self) -> None:
+        self.wf = workflow_node.Workflow("wf")
+
+    def test_scopes_labels_by_child(self) -> None:
+        self.wf.add_node(_fixtures.atomic_add_node("first"))
+        self.wf.add_node(_fixtures.atomic_add_node("second"))
+        self.wf.set_inputs_to_unconnected_child_input()
+        self.assertEqual(
+            ["first__x", "first__y", "second__x", "second__y"],
+            list(self.wf.inputs),
+            msg="Children sharing a port label must not collide",
+        )
+
+    def test_wires_edge_to_each_dangling_destination(self) -> None:
+        self.wf.add_node(_fixtures.atomic_add_node("adder"))
+        self.wf.set_inputs_to_unconnected_child_input()
+        self.assertEqual(
+            [
+                datatypes.EdgeTuple(
+                    fr.schemas.InputSource(port="adder__x"),
+                    fr.schemas.TargetHandle(node="adder", port="x"),
+                ),
+                datatypes.EdgeTuple(
+                    fr.schemas.InputSource(port="adder__y"),
+                    fr.schemas.TargetHandle(node="adder", port="y"),
+                ),
+            ],
+            self.wf.edges,
+        )
+
+    def test_child_input_fed_by_a_sibling_is_skipped(self) -> None:
+        self.wf.add_node(_fixtures.atomic_add_node("upstream"))
+        self.wf.add_node(_fixtures.atomic_add_node("downstream"))
+        self.wf.connect(self.wf.upstream, self.wf.downstream.inputs.x)
+        self.wf.set_inputs_to_unconnected_child_input()
+        self.assertEqual(
+            ["upstream__x", "upstream__y", "downstream__y"],
+            list(self.wf.inputs),
+            msg="An input already targeted by a sibling edge is not dangling",
+        )
+
+    def test_child_input_fed_by_a_constant_is_skipped(self) -> None:
+        adder = _fixtures.atomic_add_node("adder")
+        adder(y=5)
+        self.wf.add_node(adder)
+        self.wf.set_inputs_to_unconnected_child_input()
+        self.assertEqual(
+            ["adder__x"],
+            list(self.wf.inputs),
+            msg="A materialized constant feeds its target like any other sibling",
+        )
+
+    def test_default_valued_child_input_is_skipped(self) -> None:
+        self.wf.add_node(_fixtures.multiply_with_defaults_node("m"))
+        self.wf.set_inputs_to_unconnected_child_input()
+        self.assertEqual([], list(self.wf.inputs))
+
+    def test_build_for_defaults_exposes_default_valued_input(self) -> None:
+        self.wf.add_node(_fixtures.multiply_with_defaults_node("m"))
+        self.wf.set_inputs_to_unconnected_child_input(build_for_defaults=True)
+        self.assertEqual(["m__x", "m__y"], list(self.wf.inputs))
+
+    def test_created_input_carries_no_default(self) -> None:
+        self.wf.add_node(_fixtures.multiply_with_defaults_node("m"))
+        self.wf.set_inputs_to_unconnected_child_input(build_for_defaults=True)
+        self.assertFalse(
+            self.wf.inputs["m__x"].has_default,
+            msg="Workflow input must not hold defaults, however its source was chosen",
+        )
+
+    def test_empty_workflow_gets_no_inputs(self) -> None:
+        self.wf.set_inputs_to_unconnected_child_input()
+        self.assertEqual([], list(self.wf.inputs))
+
+    def test_propagates_type_hint_and_metadata(self) -> None:
+        self.wf.add_node(_fixtures.typed_int_node("ti"))
+        destination = self.wf.ti.inputs.x
+        self.wf.set_inputs_to_unconnected_child_input()
+        created = self.wf.inputs["ti__x"]
+        self.assertEqual(destination.type_hint, created.type_hint)
+        self.assertEqual(destination.type_metadata, created.type_metadata)
+
+    def test_removes_unrelated_existing_input(self) -> None:
+        self.wf.add_node(_fixtures.typed_int_node("ti"))
+        self.wf.create_input("junk")
+        self.wf.set_inputs_to_unconnected_child_input()
+        self.assertEqual(["ti__x"], list(self.wf.inputs))
+
+    def test_relabels_an_already_fed_child_input(self) -> None:
+        self.wf.add_node(_fixtures.typed_int_node("ti"))
+        self.wf.create_input_for(self.wf.ti.inputs.x, label="legacy")
+        self.wf.set_inputs_to_unconnected_child_input()
+        self.assertEqual(
+            ["ti__x"],
+            list(self.wf.inputs),
+            msg="Removing the old input frees its target to count as dangling again",
+        )
+
+    def test_is_idempotent(self) -> None:
+        self.wf.add_node(_fixtures.typed_int_node("ti"))
+        self.wf.set_inputs_to_unconnected_child_input()
+        self.wf.set_inputs_to_unconnected_child_input()
+        self.assertEqual(["ti__x"], list(self.wf.inputs))
+        self.assertEqual(1, len(self.wf.edges))
+
+    def test_run_consumes_the_scoped_input_value(self) -> None:
+        self.wf.add_node(_fixtures.atomic_add_node("adder"))
+        self.wf.set_inputs_to_unconnected_child_input()
+        self.wf.set_outputs_to_unconnected_child_output()
+        run = self.wf.run(adder__x=1, adder__y=2)
+        self.assertEqual(3, run.outputs["adder__output_0"])
+
+    def test_undo_restores_the_previous_inputs_in_one_step(self) -> None:
+        self.wf.add_node(_fixtures.typed_int_node("ti"))
+        self.wf.create_input("junk")
+        edges_before = list(self.wf.edges)
+        self.wf.set_inputs_to_unconnected_child_input()
+        self.wf.undo()
+        self.assertEqual(["junk"], list(self.wf.inputs))
+        self.assertEqual(edges_before, self.wf.edges)
+
+    def test_keeping_existing_input_raises(self) -> None:
+        self.wf.add_node(_fixtures.typed_int_node("ti"))
+        self.wf.create_input("junk")
+        with self.assertRaisesRegex(
+            ValueError,
+            "'wf' already has input port",
+            msg="Refusing to clobber input should name the workflow",
+        ):
+            self.wf.set_inputs_to_unconnected_child_input(remove_existing=False)
+
+    def test_rejected_call_leaves_the_workflow_untouched(self) -> None:
+        self.wf.add_node(_fixtures.typed_int_node("ti"))
+        self.wf.create_input_for(self.wf.ti.inputs.x, label="legacy")
+        edges_before = list(self.wf.edges)
+        with contextlib.suppress(ValueError):
+            self.wf.set_inputs_to_unconnected_child_input(remove_existing=False)
+        self.assertEqual(["legacy"], list(self.wf.inputs))
+        self.assertEqual(edges_before, self.wf.edges)
+
+    def test_keeping_existing_input_is_fine_when_there_are_none(self) -> None:
+        self.wf.add_node(_fixtures.typed_int_node("ti"))
+        self.wf.set_inputs_to_unconnected_child_input(remove_existing=False)
+        self.assertEqual(["ti__x"], list(self.wf.inputs))
+
+
+class TestRunWithoutInputsWarns(unittest.TestCase):
+    """Legacy users expect child input to surface without declaring workflow input."""
+
+    def setUp(self) -> None:
+        self.wf = workflow_node.Workflow("wf")
+        self.wf.add_node(_fixtures.multiply_with_defaults_node("m"))
+        # Give the workflow output, so only the input warning is in play
+        self.wf.set_outputs_to_unconnected_child_output()
+
+    def test_run_without_inputs_warns(self) -> None:
+        with self.assertWarns(UserWarning) as caught:
             self.wf.run()
+        message = str(caught.warning)
+        self.assertIn("set_inputs_to_unconnected_child_input", message)
+        self.assertIn(compatibility.DOWNGRADE, message)
+
+    def test_run_with_inputs_does_not_warn(self) -> None:
+        self.wf.set_inputs_to_unconnected_child_input(build_for_defaults=True)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
+            self.wf.run(m__x=3, m__y=4)
 
 
 if __name__ == "__main__":
