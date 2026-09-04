@@ -68,8 +68,8 @@ class _MutablePortMap(
             )
         if key != value.label:
             raise ValueError(
-                f"Port {key!r} already has label {value.label!r} and cannot be assigned "
-                f"to a port map with label {value.label!r}."
+                f"Port being assigned to {key!r} already has label {value.label!r} and "
+                f"cannot be assigned to a map where key and label mismatch."
             )
         self._pwf_lexical_map__data[key] = value
 
@@ -103,8 +103,8 @@ class MutableNodeMap(
             )
         if key != value.label:
             raise ValueError(
-                f"Node {key!r} already has label {value.label!r} and cannot be assigned "
-                f"to a node map with label {value.label!r}."
+                f"Node being assigned to {key!r} already has label {value.label!r} and "
+                f"cannot be assigned to a map where key and label mismatch."
             )
         value._owner = self._pwf_lexical_map__owner
         self._pwf_lexical_map__data[key] = value

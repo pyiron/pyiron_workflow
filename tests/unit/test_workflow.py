@@ -53,7 +53,7 @@ class TestMutablePortMap(unittest.TestCase):
         )
         with self.assertRaisesRegex(
             ValueError,
-            "Port 'x' already has label 'y'",
+            "Port being assigned to 'x' already has label 'y'",
             msg="The map key and the port's own label must agree",
         ):
             self.wf.inputs["x"] = misaligned
