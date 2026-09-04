@@ -324,10 +324,18 @@ class Node(
             elif fr.tools.is_jsonable(v):
                 constants[k] = v
             else:
+                from pyiron_workflow import compatibility  # noqa: PLC0415
+
                 raise TypeError(
                     f"Cannot use {v!r} as the source for input {k!r} of "
                     f"{self.lexical_path!r}: expected a {Port.__name__}, a "
-                    f"{Node.__name__}, or a JSONable constant."
+                    f"{Node.__name__}, or a JSONable constant. \n"
+                    f"Older versions of pyiron_workflow allowed arbitrary python "
+                    f"objects to be assigned as input port data; with the "
+                    f"Flowrep-based approach, non-JSONable data needs to be sourced by "
+                    f"edges to the terminal input of the workflow, or come from a "
+                    f"bespoke node that produces that complex data. "
+                    f"{compatibility.DOWNGRADE}"
                 )
         with self._pending_state_restored_on_error():
             self._pending_constants.update(constants)
