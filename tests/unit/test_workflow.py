@@ -47,6 +47,22 @@ class TestMutablePortMap(unittest.TestCase):
         ):
             self.wf.inputs["y"] = foreign
 
+    def test_setitem_mismatched_label_raises(self) -> None:
+        misaligned = datatypes.InputPort(
+            label="y", owner=self.wf, type_hint=None, type_metadata=None
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "Port 'x' already has label 'y'",
+            msg="The map key and the port's own label must agree",
+        ):
+            self.wf.inputs["x"] = misaligned
+        self.assertNotIn(
+            "x",
+            self.wf.inputs,
+            msg="The rejected write must leave the map untouched",
+        )
+
     def test_setitem_duplicate_key_raises(self) -> None:
         self.wf.inputs["x"] = self.port
         replacement = datatypes.InputPort(

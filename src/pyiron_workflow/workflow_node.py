@@ -66,6 +66,11 @@ class _MutablePortMap(
                 f"Port {key!r} already has owner {value.owner.lexical_path!r} and cannot "
                 f"be assigned to a port map with owner {owner.lexical_path!r}"
             )
+        if key != value.label:
+            raise ValueError(
+                f"Port {key!r} already has label {value.label!r} and cannot be assigned "
+                f"to a port map with label {value.label!r}."
+            )
         self._pwf_lexical_map__data[key] = value
 
     def __delitem__(self, key: fr.schemas.Label):
