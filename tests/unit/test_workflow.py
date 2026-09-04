@@ -3327,6 +3327,56 @@ class TestSetInputsToUnconnectedChildInput(unittest.TestCase):
         self.assertEqual(["ti__x"], list(self.wf.inputs))
 
 
+class TestSetIOToUnconnectedChildIO(unittest.TestCase):
+    """
+    A convenience wrapper over the two halves, which own the real behaviour; these
+    cases check that both run, that both keyword arguments reach them, and that the
+    pair commits atomically.
+    """
+
+    def setUp(self) -> None:
+        self.wf = workflow_node.Workflow("wf")
+        self.wf.add_node(_fixtures.atomic_add_node("adder"))
+
+    def test_sets_both_halves(self) -> None:
+        self.wf.set_io_to_unconnected_child_io()
+        self.assertEqual(["adder__x", "adder__y"], list(self.wf.inputs))
+        self.assertEqual(["adder__output_0"], list(self.wf.outputs))
+
+    def test_run_round_trips_through_the_new_io(self) -> None:
+        self.wf.set_io_to_unconnected_child_io()
+        run = self.wf.run(adder__x=1, adder__y=2)
+        self.assertEqual(3, run.outputs["adder__output_0"])
+
+    def test_forwards_build_for_defaults(self) -> None:
+        self.wf.add_node(_fixtures.multiply_with_defaults_node("m"))
+        self.wf.set_io_to_unconnected_child_io(build_for_defaults=True)
+        self.assertIn("m__x", self.wf.inputs)
+
+    def test_forwards_remove_existing_to_the_input_half(self) -> None:
+        self.wf.create_input("junk")
+        with self.assertRaisesRegex(ValueError, "already has input port"):
+            self.wf.set_io_to_unconnected_child_io(remove_existing=False)
+
+    def test_a_rejected_output_half_rolls_back_the_input_half(self) -> None:
+        self.wf.create_output("junk")
+        with self.assertRaisesRegex(ValueError, "already has output port"):
+            self.wf.set_io_to_unconnected_child_io(remove_existing=False)
+        self.assertEqual(
+            [],
+            list(self.wf.inputs),
+            msg="The input half succeeded, but the pair must commit all or nothing",
+        )
+        self.assertEqual(["junk"], list(self.wf.outputs))
+
+    def test_undo_restores_both_halves_in_one_step(self) -> None:
+        self.wf.set_io_to_unconnected_child_io()
+        self.wf.undo()
+        self.assertEqual([], list(self.wf.inputs))
+        self.assertEqual([], list(self.wf.outputs))
+        self.assertEqual([], self.wf.edges)
+
+
 class TestRunWithoutInputsWarns(unittest.TestCase):
     """Legacy users expect child input to surface without declaring workflow input."""
 

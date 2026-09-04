@@ -852,6 +852,26 @@ class Workflow(datatypes.MutableDag):
                     self.create_output_from(port, label=f"{child.label}__{port.label}")
 
     @_undoable
+    def set_io_to_unconnected_child_io(
+        self, remove_existing: bool = True, build_for_defaults: bool = False
+    ) -> None:
+        """
+        Replace this workflow's IO with one port per dangling child IO port.
+
+        Args:
+            remove_existing (bool): Whether to discard the existing IO ports, and
+                the edges connecting them, before rebuilding. (Default is True, discard
+                them; False raises instead when any IO port is present.)
+            build_for_defaults (bool): Whether to also expose child input that already
+                has a default value available. (Default is False, leave defaulted
+                input to its default.)
+        """
+        self.set_inputs_to_unconnected_child_input(
+            remove_existing=remove_existing, build_for_defaults=build_for_defaults
+        )
+        self.set_outputs_to_unconnected_child_output(remove_existing=remove_existing)
+
+    @_undoable
     def add_port_hint(
         self, port: datatypes.InputPort | datatypes.OutputPort, hint: type | None
     ) -> None:
