@@ -123,15 +123,71 @@ def target_port_to_handle(port: Port, context: MutableDag):
 
 
 PortType = TypeVar("PortType", bound=Port)
+PortMapOwnerType = TypeVar("PortMapOwnerType", bound="Node")
 
 
-class PortMap(lexical.LexicalMap[PortType, lexical.OwnerType]): ...
+class PortMap(lexical.LexicalMap[PortType, PortMapOwnerType]):
+    # NOTE: Do not define `__setitem__`/`__delitem__` here. The mutable port maps in
+    # `workflow_node` inherit from this class _and_ `workflow_node._MutablePortMap`,
+    # with this class earlier in their MRO, so anything defined here shadows the
+    # mutable implementation and silently freezes a `Workflow`'s port maps.
+
+    def __setattr__(self, name: str, value: object) -> None:
+        """
+        Reject attribute assignment; only internal (underscored) names get through.
+
+        :class:`InputMap` overrides this to give _its_ ports assignment sugar, so the
+        symmetry is deliberate: without this, assigning to an output map would quietly
+        stash a stray attribute that does nothing.
+        """
+        if name.startswith("_pwf_lexical_map") or name.startswith("__"):
+            # Internal plumbing, e.g. the map's own slots, or `__orig_class__` as
+            # assigned by typing when the map is built from a subscripted generic
+            object.__setattr__(self, name, value)
+            return
+        raise TypeError(
+            f"{type(self).__name__} on "
+            f"{self._pwf_lexical_map__owner.lexical_path!r} does not support attribute "
+            f"assignment (tried to set {name!r}). Only input maps do, as syntactic "
+            f"sugar for establishing an input's data source; to consume an output, "
+            f"assign it as such a source, e.g. "
+            f"`target.inputs.<label> = source.outputs.<label>`."
+        )
 
 
-class InputMap(PortMap[InputPort, lexical.OwnerType], Generic[lexical.OwnerType]): ...
+class InputMap(PortMap[InputPort, PortMapOwnerType], Generic[PortMapOwnerType]):
+
+    def __setattr__(self, name: str, value: Port | Node | fr.schemas.JSONABLE) -> None:
+        """
+        Syntactic sugar for establishing a new data source for the port.
+        """
+        if name.startswith("_pwf_lexical_map"):
+            # The map's own slots; must come first, as they are not yet set when
+            # unpickling restores them
+            object.__setattr__(self, name, value)
+            return
+        elif name in self._pwf_lexical_map__data:
+            # Use a call one the owner to invoke public access to
+            # Node._establish_sources
+            self._pwf_lexical_map__owner(**{name: value})
+        elif name.startswith("__"):
+            # Internal plumbing, e.g. `__orig_class__` as assigned by typing when the
+            # map is built from a subscripted generic. Checked _after_ the ports so a
+            # dunder-prefixed port label cannot silently no-op here; note that such a
+            # label is unreachable through this sugar from inside a class body, where
+            # python mangles the name before we ever see it.
+            object.__setattr__(self, name, value)
+        else:
+            raise KeyError(
+                f"{self._pwf_lexical_map__owner.lexical_path!r} has no input port "
+                f"{name!r}. Attribute assignment is syntactic sugar for establishing "
+                f"sources for _existing_ input ports, e.g. "
+                f"`target.inputs.<label> = source.outputs.<label>`. Available: "
+                f"{list(self.keys())}"
+            )
 
 
-class OutputMap(PortMap[OutputPort, lexical.OwnerType], Generic[lexical.OwnerType]): ...
+class OutputMap(PortMap[OutputPort, PortMapOwnerType], Generic[PortMapOwnerType]): ...
 
 
 RecipeType = TypeVar(

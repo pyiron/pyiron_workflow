@@ -58,9 +58,24 @@ class _MutablePortMap(
     _pwf_lexical_map__owner: Workflow
 
     def __setitem__(self, key: fr.schemas.Label, value: datatypes.PortType):
+        owner = self._pwf_lexical_map__owner
+        if not isinstance(value, datatypes.Port):
+            # Item and attribute assignment play very different roles on an input map,
+            # so send the likely-confused caller to the other one
+            hint = (
+                f"To set the source for an _existing_ input, use attribute assignment "
+                f"-- {owner.label}.inputs.{key} = ... -- or call the node: "
+                f"{owner.label}({key}=...)."
+                if isinstance(self, datatypes.InputMap)
+                else "Outputs take their values from the node's own execution."
+            )
+            raise TypeError(
+                f"Item assignment on {type(self).__name__} registers a "
+                f"{datatypes.Port.__name__} under a label, but {key!r} got {value!r}. "
+                + hint
+            )
         if key in self._pwf_lexical_map__data:
             raise _duplicate_entry_error(self._pwf_lexical_map__owner, key, "port")
-        owner = self._pwf_lexical_map__owner
         if value.owner is not owner:
             raise ValueError(
                 f"Port {key!r} already has owner {value.owner.lexical_path!r} and cannot "

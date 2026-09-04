@@ -87,6 +87,27 @@ class TestMutablePortMap(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "'wf' already has a port 'z'"):
             self.wf.outputs["z"] = replacement
 
+    def test_setitem_non_port_raises(self) -> None:
+        with self.assertRaises(TypeError) as ctx:
+            self.wf.inputs["x"] = 5
+        self.assertIn(
+            "inputs.x",
+            str(ctx.exception),
+            msg="The message should point at the attribute-assignment sugar",
+        )
+        self.assertNotIn("x", self.wf.inputs)
+
+    def test_setitem_non_port_raises_on_outputs(self) -> None:
+        with self.assertRaises(TypeError):
+            self.wf.outputs["z"] = 5
+
+    def test_setattr_sugar_survives_the_mutable_subclass(self) -> None:
+        # `MutableInputMap` lists `InputMap` before `_MutablePortMap`, so the
+        # read-only side's attribute sugar must still be reachable
+        self.wf.inputs["x"] = self.port
+        self.wf.inputs.x = 5
+        self.assertEqual({"x": 5}, self.wf._pending_constants)
+
     def test_delitem_removes_entry(self) -> None:
         self.wf.inputs["x"] = self.port
         self.assertIn("x", self.wf.inputs)
