@@ -21,9 +21,69 @@ class _TopLevel:
     From the 0.17.0 top-level __init__.py
     """
 
-    RELOCATED: dict[str, str] = {}
+    RELOCATED: dict[str, str] = {
+        "NodeSlurmExecutor": "Use `pyiron_workflow.tools.NodeSlurmExecutor` instead.",
+    }
 
-    NOT_AVAILABLE: dict[str, str] = {}
+    NOT_AVAILABLE: dict[str, str] = {
+        "as_dataclass_node": (
+            "Decorate your class with `@flowrep.dataclass`, then convert it to a node "
+            "with `pyiron_workflow.node`; e.g. "
+            "`wf.dc_node = pyiron_workflow.node(MyDC, x=1, y=2)`. `@flowrep.dataclass` "
+            "also makes the inverse operation (a node taking a dataclass and returning "
+            "one output port per dataclass field) available under "
+            "`.flowrep_recipe_unpacking`."
+        ),
+        # "Workflow": new functionality exists under the same name
+        # "as_function_node": available via compatibility wrapper
+        # "as_macro_node": available via compatibility wrapper
+        "dataclass_node": (
+            "Use the `@flowrep.dataclass` to wrap your class into a dataclass, and "
+            "convert it to a node with `pyiron_workflow.node`; e.g. "
+            "`wf.dc_node = pyiron_workflow.node(flowrep.dataclass(MyDC), x=1, y=2)."
+        ),
+        "for_node": (
+            "In the context of parsing a decorated context, you can write for-loops "
+            "with constrained but native python code -- see the flowrep user guide. "
+            "Further, it is now always allowed to directly write a flowrep for-loop "
+            "recipe with `flowrep.schemas.ForEachRecipe` and turn that into a "
+            "pyiron_workflow node, e.g. "
+            "`wf.for_node = pyiron_workflow.node(my_foreach_recipe)`."
+        ),
+        "function_node": (
+            "Simply cast the function to a node before adding it to a workflow, e.g. "
+            "`wf.function_node = pyiron_workflow.node(some_function)`."
+            "For tricky/unparseable functions, you have the power to define how the "
+            "function will be executed and how its IO will be exposed by writing a "
+            "flowrep atomic recipe directly using `flowrep.schemas.AtomicRecipe`."
+        ),
+        "macro_node": (
+            "For functions written to be parsed by legacy pyiron_workflow, use the "
+            "`@pyiron_workflow.as_macro_node` decorator on the function definition, or "
+            "rewrite the function to be compliant with `flowrep.workflow` parsing and "
+            "simply use "
+            "`wf.macro_node = pyiron_workflow.node(flowrep.workflow(some_flowrep_macro_definition))`."
+        ),
+        "std": (
+            "Use `flowrep.std` instead, and convert standard recipes to nodes when "
+            "adding them to a workflow, e.g. "
+            "`wf.add = pyiron_workflow.node(flowrep.std.add)`."
+        ),
+        "to_function_node": (
+            "Flowrep-based nodes don't have subclasses for each individual node; the "
+            "closest analogy is to look at the recipe of a parsed function, e.g. "
+            "`my_recipe = flowrep.atomic(some_function).flowrep_recipe`. Note that these "
+            "recipes are callable (e.g., `my_recipe(1, 2)`) and can be used as nodes in a "
+            "pyiron_workflow workflow (e.g., `wf.my_node = pwf.node(my_recipe, y=2)`)."
+        ),
+        "while_node": (
+            "In the context of parsing a decorated context, you can write while-loops with "
+            "constrained but native python code -- see the flowrep user guide. Further, it "
+            "is always allowed to directly write a flowrep while-loop recipe with "
+            "`flowrep.schemas.WhileRecipe` and turn that into a pyiron_workflow node, e.g. "
+            "`wf.for_node = pyiron_workflow.node(my_foreach_recipe)`."
+        ),
+    }
 
 
 class _ApiSubmodule:
