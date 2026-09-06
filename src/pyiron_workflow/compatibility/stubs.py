@@ -83,7 +83,7 @@ class _TopLevel:
             "Further, it is always allowed to directly write a flowrep while-loop "
             "recipe with `flowrep.schemas.WhileRecipe` and turn that into a "
             "pyiron_workflow node, e.g. "
-            "`wf.for_node = pyiron_workflow.node(my_foreach_recipe)`."
+            "`wf.while_node = pyiron_workflow.node(my_while_recipe)`."
         ),
     }
 
