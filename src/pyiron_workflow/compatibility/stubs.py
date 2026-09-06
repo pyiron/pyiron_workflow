@@ -181,10 +181,12 @@ def _getattr_or_raise(
         )
     if (addendum := scope.NOT_AVAILABLE.get(name)) is not None:
         raise RemovedFeatureError(
-            f"{name} is not available in this version of pyiron_workflow. The most "
-            f"recent version retaining this object is pyiron_workflow-0.17.0. For "
-            f"the new, flowrep-based implementation: {addendum} {messages.DOWNGRADE} "
-            f"For more on flowrep see {_REPO_URL} or the user guide at {_USER_GUIDE}.",
+            f"{name} was removed in version 0.19.0; The most recent version retaining "
+            f"this object as the primary interface is version 0.17.0.\n\n"
+            f"In the flowrep-based paradigm:\n\t{addendum}\n\n"
+            f"For more on flowrep: {_REPO_URL}\n"
+            f"The flowrep user guide: {_USER_GUIDE}\n\n"
+            f"{messages.DOWNGRADE}",
             name=name,
         )
     raise AttributeError(f"module {module_name!r} has no attribute {name!r}")
