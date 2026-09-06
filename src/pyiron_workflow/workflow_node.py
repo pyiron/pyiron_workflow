@@ -351,7 +351,7 @@ class Workflow(datatypes.MutableDag):
         """
         from pyiron_workflow import compatibility  # noqa: PLC0415 -- cycle guard
 
-        warnings.warn(f"{message} {compatibility.DOWNGRADE}", stacklevel=3)
+        warnings.warn(f"{message}\n\n{compatibility.DOWNGRADE}", stacklevel=3)
 
     def run(
         self, config: execution.RunConfig | None = None, /, **input_data
