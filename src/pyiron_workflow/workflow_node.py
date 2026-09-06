@@ -225,6 +225,27 @@ class Workflow(datatypes.MutableDag):
         **connections: datatypes.Port | datatypes.Node | fr.schemas.JSONABLE,
     ):
         if connections:
+            _legacy_kwargs = (
+                "delete_existing_savefiles",
+                "autoload",
+                "autorun",
+                "checkpoint",
+                "strict_naming",
+                "inputs_map",
+                "outputs_map",
+                "automate_execution",
+            )
+            if used_legacy := connections.keys() & _legacy_kwargs:
+                from pyiron_workflow import compatibility  # noqa: PLC0415
+
+                warnings.warn(
+                    f"It looks like you tried to use legacy kwargs when instantiating "
+                    f"a workflow: {used_legacy}.\n"
+                    f"The new, flowrep-based implementation of pyiron_workflow does "
+                    f"not accept these; please read the new user guide at: https://pyiron-workflow.readthedocs.io/en/latest/source/notebooks/user_guide.html\n\n"
+                    f"{compatibility.DOWNGRADE}",
+                    stacklevel=3,
+                )
             raise TypeError(
                 f"A new {self.__class__.__name__} has no input ports, so it cannot "
                 f"accept the connection(s) {list(connections.keys())!r} at "
