@@ -6,14 +6,20 @@ import types
 
 import flowrep as fr
 import semantikon
-from pyiron_snippets import versions
+from pyiron_snippets import deprecate, versions
 
 from pyiron_workflow import constructors, datatypes, workflow_node
 
 from . import multiple_dispatch, output_parser
 
+deprecated = deprecate.Deprecator()
+
 
 @multiple_dispatch.dispatch_output_labels
+@deprecated(
+    "Use `flowrep.atomic` instead, and explicitly instantiate a node.",
+    version="0.21.0",
+)
 def as_function_node(*output_labels, **kwargs):
     """
     This is a compatibility decorator so that legacy ``.py`` files with decorated
@@ -35,6 +41,11 @@ def as_function_node(*output_labels, **kwargs):
 
 
 @multiple_dispatch.dispatch_output_labels
+@deprecated(
+    "Upgrade function body syntax using `flowrep.workflow` instead, and "
+    "explicitly instantiate a node.",
+    version="0.21.0",
+)
 def as_macro_node(*output_labels, **kwargs):
     """
     This is a compatibility decorator so that legacy ``.py`` files with decorated
