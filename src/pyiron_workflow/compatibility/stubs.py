@@ -72,18 +72,37 @@ class _TopLevel:
         "to_function_node": (
             "Flowrep-based nodes don't have subclasses for each individual node; the "
             "closest analogy is to look at the recipe of a parsed function, e.g. "
-            "`my_recipe = flowrep.atomic(some_function).flowrep_recipe`. Note that these "
-            "recipes are callable (e.g., `my_recipe(1, 2)`) and can be used as nodes in a "
-            "pyiron_workflow workflow (e.g., `wf.my_node = pwf.node(my_recipe, y=2)`)."
+            "`my_recipe = flowrep.atomic(some_function).flowrep_recipe`. Note that "
+            "these recipes are callable (e.g., `my_recipe(1, 2)`) and can be used as "
+            "nodes in a pyiron_workflow workflow (e.g., "
+            "`wf.my_node = pwf.node(my_recipe, y=2)`)."
         ),
         "while_node": (
-            "In the context of parsing a decorated context, you can write while-loops with "
-            "constrained but native python code -- see the flowrep user guide. Further, it "
-            "is always allowed to directly write a flowrep while-loop recipe with "
-            "`flowrep.schemas.WhileRecipe` and turn that into a pyiron_workflow node, e.g. "
+            "In the context of parsing a decorated context, you can write while-loops "
+            "with constrained but native python code -- see the flowrep user guide. "
+            "Further, it is always allowed to directly write a flowrep while-loop "
+            "recipe with `flowrep.schemas.WhileRecipe` and turn that into a "
+            "pyiron_workflow node, e.g. "
             "`wf.for_node = pyiron_workflow.node(my_foreach_recipe)`."
         ),
     }
+
+
+_TRANSFORMER_MESSAGE = (
+    "There is no special pyiron_workflow or flowrep tool for this, but the flowrep "
+    "user guide outlines how power-users can create recipes for data transformation "
+    "that reference very flexible functions, including those which accept variadic "
+    "input"
+)
+_STORAGE_MESSAGE = (
+    "Flowrep-based pyiron_workflow does not enforce a particular storage paradigm; "
+    "recipes are save-able as plain-test JSON by virtue of all flowrep recipes being "
+    "pydantic models -- just write the `some_recipe.model_dump_json(indent=2)` string "
+    "to file however you please. For storing completed `Run` output or "
+    "`flowrep.schemas.NodeData` output, we recommend using bagofholding; "
+    "`flowrep.tools.LexicalBagBrowser` provides a convenient widget for browsing and "
+    "reloading `NodeData` stored in H5 bags."
+)
 
 
 class _ApiSubmodule:
@@ -91,9 +110,64 @@ class _ApiSubmodule:
     From the 0.17.0 api.py submodule
     """
 
-    RELOCATED: dict[str, str] = {}
+    RELOCATED: dict[str, str] = {
+        "NodeSlurmExecutor": _TopLevel.RELOCATED["NodeSlurmExecutor"],
+    }
 
-    NOT_AVAILABLE: dict[str, str] = {}
+    NOT_AVAILABLE: dict[str, str] = {
+        "NOT_DATA": "Use the singleton class `flowrep.schemas.NotData` instead.",
+        "CloudpickleProcessPoolExecutor": (
+            "The pyiron_workflow infrastructure itself works fine with a regular "
+            "`concurrent.futures.ProcessPoolExecutor`; if you have _data_ moving "
+            "through your graph that will not pickle, finding an executor to work with "
+            "it is outside the scope of pyiron_workflow. Cf. also "
+            "`pyiron_workflow.tools.NodeSingleExecutor` and `.NodeSlurmExecutor` for "
+            "convenience wrappers to Executorlib executors."
+        ),
+        "logger": (
+            "There is no custom logger; use the `pyiron_workflow.RunConfig`'s "
+            "`progress_hook` and `exception_hook` fields to configure graph-based "
+            "activity reporting on a per-run basis."
+        ),
+        "std": _TopLevel.NOT_AVAILABLE["std"],
+        "FailedChildError": (
+            "Child errors are raised as-is, or grouped in an exception group and "
+            "raised together."
+        ),
+        "For": _TopLevel.NOT_AVAILABLE["for_node"],
+        "for_node": _TopLevel.NOT_AVAILABLE["for_node"],
+        "for_node_factory": _TopLevel.NOT_AVAILABLE["for_node"],
+        "Function": _TopLevel.NOT_AVAILABLE["to_function_node"],
+        # "as_function_node": available via compatibility wrapper
+        "function_node": _TopLevel.NOT_AVAILABLE["function_node"],
+        "to_function_node": _TopLevel.NOT_AVAILABLE["to_function_node"],
+        "Macro": (
+            "Flowrep-based nodes don't have subclasses for each individual node; the "
+            "closest analogy is to look at the recipe of a parsed function, e.g. "
+            "`my_macro_recipe = flowrep.workflow(some_macro_function).flowrep_recipe`, "
+            "where `some_macro_function` is written in the constrained subset of "
+            "python syntax that flowrep knows how to parse as a macro (cf. the flowrep "
+            "docs). Note that these recipes are callable (e.g., `my_recipe(1, 2)`) and "
+            "can be used as nodes in a pyiron_workflow workflow (e.g., "
+            "`wf.my_subgraph = pwf.node(my_macro_recipe, y=2)`)."
+        ),
+        # "as_macro_node": available via compatibility wrapper
+        "macro_node": _TopLevel.NOT_AVAILABLE["macro_node"],
+        "as_dataclass_node": _TopLevel.NOT_AVAILABLE["as_dataclass_node"],
+        "dataclass_node": _TopLevel.NOT_AVAILABLE["dataclass_node"],
+        "inputs_to_dataframe": _TRANSFORMER_MESSAGE,
+        "inputs_to_dict": _TRANSFORMER_MESSAGE,
+        "inputs_to_list": _TRANSFORMER_MESSAGE,
+        "list_to_outputs": _TRANSFORMER_MESSAGE,
+        "While": _TopLevel.NOT_AVAILABLE["while_node"],
+        "while_node": _TopLevel.NOT_AVAILABLE["while_node"],
+        "while_node_factory": _TopLevel.NOT_AVAILABLE["while_node"],
+        "PickleStorage": _STORAGE_MESSAGE,
+        "StorageInterface": _STORAGE_MESSAGE,
+        "TypeNotFoundError": _STORAGE_MESSAGE,
+        "available_backends": _STORAGE_MESSAGE,
+        # "Workflow": new functionality exists under the same name
+    }
 
 
 def _getattr_or_raise(
