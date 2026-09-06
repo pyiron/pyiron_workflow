@@ -244,7 +244,7 @@ class Workflow(datatypes.MutableDag):
                     f"The new, flowrep-based implementation of pyiron_workflow does "
                     f"not accept these; please read the new user guide at: https://pyiron-workflow.readthedocs.io/en/latest/source/notebooks/user_guide.html\n\n"
                     f"{compatibility.DOWNGRADE}",
-                    stacklevel=3,
+                    stacklevel=2,
                 )
             raise TypeError(
                 f"A new {self.__class__.__name__} has no input ports, so it cannot "

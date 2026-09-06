@@ -3,6 +3,8 @@ from __future__ import annotations
 import collections
 import contextlib
 import dataclasses
+import inspect
+import os
 import pickle
 import unittest
 import warnings
@@ -3398,6 +3400,94 @@ class TestRunWithoutInputsWarns(unittest.TestCase):
         with warnings.catch_warnings():
             warnings.simplefilter("error", UserWarning)
             self.wf.run(m__x=3, m__y=4)
+
+
+# The keyword-only parameters of `Workflow.__init__` in pyiron_workflow-0.17.0,
+# transcribed from that tag. Anything a legacy user could pass by name should be
+# recognised and explained rather than landing in the generic connection error.
+LEGACY_WORKFLOW_KWARGS = (
+    "delete_existing_savefiles",
+    "autoload",
+    "autorun",
+    "checkpoint",
+    "strict_naming",
+    "inputs_map",
+    "outputs_map",
+    "automate_execution",
+)
+
+
+def _init_warnings(**kwargs) -> list[warnings.WarningMessage]:
+    """Construct a workflow and hand back its warnings, swallowing the `TypeError`."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        with contextlib.suppress(TypeError):
+            workflow_node.Workflow("wf", **kwargs)
+    return caught
+
+
+class TestLegacyInitKwargsWarn(unittest.TestCase):
+    """
+    Legacy construction kwargs are gone, but recognising them lets us say *why*
+    instead of leaving the user with the generic "no input ports" complaint.
+    """
+
+    def test_every_legacy_kwarg_is_recognised(self) -> None:
+        for kwarg in LEGACY_WORKFLOW_KWARGS:
+            with self.subTest(kwarg=kwarg):
+                caught = _init_warnings(**{kwarg: True})
+                self.assertEqual(1, len(caught))
+                self.assertTrue(issubclass(caught[0].category, UserWarning))
+                self.assertIn(kwarg, str(caught[0].message))
+
+    def test_warning_explains_the_way_forward(self) -> None:
+        message = str(_init_warnings(autorun=True)[0].message)
+        self.assertIn("legacy kwargs", message)
+        self.assertIn("user_guide", message)
+        self.assertIn(compatibility.DOWNGRADE, message)
+
+    def test_several_legacy_kwargs_are_all_named(self) -> None:
+        message = str(_init_warnings(autorun=True, strict_naming=False)[0].message)
+        self.assertIn("autorun", message)
+        self.assertIn("strict_naming", message)
+
+    def test_legacy_kwargs_still_raise(self) -> None:
+        # The warning is advice; the construction itself is still an error.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            with self.assertRaises(TypeError) as ctx:
+                workflow_node.Workflow("wf", autorun=True)
+        self.assertIn("create_input", str(ctx.exception))
+
+    def test_mixed_kwargs_warn_only_about_the_legacy_one(self) -> None:
+        message = str(_init_warnings(autorun=True, x=5)[0].message)
+        self.assertIn("autorun", message)
+        self.assertNotIn("'x'", message)
+
+    def test_ordinary_connection_kwargs_do_not_warn(self) -> None:
+        self.assertEqual([], _init_warnings(x=5))
+
+    def test_plain_construction_does_not_warn(self) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
+            self.assertEqual("wf", workflow_node.Workflow("wf").label)
+
+
+class TestLegacyInitWarningAttribution(unittest.TestCase):
+    """The advice is only useful if it points at the line that needs changing."""
+
+    def test_warning_blames_the_caller(self) -> None:
+        # Checked by line, not just by file: a `stacklevel` that overshoots by one
+        # still lands in this module when the call is nested inside a helper.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            construction_line = inspect.currentframe().f_lineno + 2  # type: ignore[union-attr]
+            with contextlib.suppress(TypeError):
+                workflow_node.Workflow("wf", autorun=True)
+        self.assertEqual(
+            os.path.basename(__file__), os.path.basename(caught[0].filename)
+        )
+        self.assertEqual(construction_line, caught[0].lineno)
 
 
 if __name__ == "__main__":
