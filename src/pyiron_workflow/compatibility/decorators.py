@@ -62,7 +62,7 @@ def _kwargs_error(func, **kwargs) -> str:
         "Compatibility decorators take legacy-decorated functions, and turn them into "
         "factories for new node classes. In this context, arguments (other than output "
         "labels) to the decorator are not meaningful. Can't parse "
-        f"{func.__qualname__!r} as a compatiblity factory because it received kwargs "
+        f"{func.__qualname__!r} as a compatibility factory because it received kwargs "
         f"{kwargs!r}"
     )
 
