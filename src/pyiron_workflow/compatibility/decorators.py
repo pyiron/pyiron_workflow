@@ -49,7 +49,7 @@ def as_macro_node(*output_labels, **kwargs):
     legacy workflows to new workflows.
     """
     if kwargs:
-        raise ValueError(_kwargs_error(as_function_node, **kwargs))
+        raise ValueError(_kwargs_error(as_macro_node, **kwargs))
 
     def decorator(func):
         return _MacroFactory(func, *output_labels)
