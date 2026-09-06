@@ -3,23 +3,45 @@ import inspect
 import itertools
 import re
 import types
+import warnings
 
 import flowrep as fr
 import semantikon
-from pyiron_snippets import deprecate, versions
+from pyiron_snippets import versions
 
 from pyiron_workflow import constructors, datatypes, workflow_node
 
 from . import multiple_dispatch, output_parser
 
-deprecated = deprecate.Deprecator()
+_REMOVAL_VERSION = "0.21.0"
+_ATOMIC_GUIDANCE = "Use `flowrep.atomic` instead, and explicitly instantiate a node."
+_MACRO_GUIDANCE = (
+    "Upgrade function body syntax using `flowrep.workflow` instead, and explicitly "
+    "instantiate a node."
+)
+
+
+def _warn_deprecated(
+    decorator_name: str, guidance: str, func: types.FunctionType
+) -> None:
+    """
+    Warn at the decorated definition rather than at whoever called the decorator.
+
+    ``warn_explicit`` lets us name ``func``'s own source location, so the warning
+    points at the ``def`` that has to change regardless of which multiple-dispatch
+    form routed us here.
+    """
+    warnings.warn_explicit(
+        f"`pyiron_workflow.{decorator_name}` is deprecated and is not guaranteed to "
+        f"be in service in version {_REMOVAL_VERSION}; it is applied to "
+        f"{func.__module__}.{func.__qualname__}. {guidance}",
+        DeprecationWarning,
+        filename=inspect.getsourcefile(func) or "<unknown>",
+        lineno=func.__code__.co_firstlineno,
+    )
 
 
 @multiple_dispatch.dispatch_output_labels
-@deprecated(
-    "Use `flowrep.atomic` instead, and explicitly instantiate a node",
-    version="0.21.0",
-)
 def as_function_node(*output_labels, **kwargs):
     """
     This is a compatibility decorator so that legacy ``.py`` files with decorated
@@ -35,17 +57,13 @@ def as_function_node(*output_labels, **kwargs):
         raise ValueError(_kwargs_error(as_function_node, **kwargs))
 
     def decorator(func):
+        _warn_deprecated("as_function_node", _ATOMIC_GUIDANCE, func)
         return _AtomicFactory(func, *output_labels)
 
     return decorator
 
 
 @multiple_dispatch.dispatch_output_labels
-@deprecated(
-    "Upgrade function body syntax using `flowrep.workflow` instead, and "
-    "explicitly instantiate a node",
-    version="0.21.0",
-)
 def as_macro_node(*output_labels, **kwargs):
     """
     This is a compatibility decorator so that legacy ``.py`` files with decorated
@@ -63,6 +81,7 @@ def as_macro_node(*output_labels, **kwargs):
         raise ValueError(_kwargs_error(as_macro_node, **kwargs))
 
     def decorator(func):
+        _warn_deprecated("as_macro_node", _MACRO_GUIDANCE, func)
         return _MacroFactory(func, *output_labels)
 
     return decorator
