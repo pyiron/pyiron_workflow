@@ -10,7 +10,7 @@ from pyiron_snippets import versions
 
 from pyiron_workflow import constructors, datatypes, workflow_node
 
-from . import messages, multiple_dispatch, output_parser
+from . import multiple_dispatch, output_parser
 
 
 @multiple_dispatch.dispatch_output_labels
@@ -108,7 +108,7 @@ class _CompatibilityFactory(abc.ABC):
                 "Flowrep-based pyiron_workflow requires that data be passed to nodes "
                 f"using keyword arguments, but {node.lexical_path!r} received the "
                 f"args {args!r}. Please use keywords among "
-                f"{list(node.inputs.keys())}. {messages.DOWNGRADE}"
+                f"{list(node.inputs.keys())}."
             )
         node._establish_sources(**kwargs)
         return node
