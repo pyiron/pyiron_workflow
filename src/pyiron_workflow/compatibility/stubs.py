@@ -111,11 +111,11 @@ class _ApiSubmodule:
     """
 
     RELOCATED: dict[str, str] = {
+        "NOT_DATA": "Use `flowrep.schemas.NOT_DATA` instead.",
         "NodeSlurmExecutor": _TopLevel.RELOCATED["NodeSlurmExecutor"],
     }
 
     NOT_AVAILABLE: dict[str, str] = {
-        "NOT_DATA": "Use the singleton class `flowrep.schemas.NotData` instead.",
         "CloudpickleProcessPoolExecutor": (
             "The pyiron_workflow infrastructure itself works fine with a regular "
             "`concurrent.futures.ProcessPoolExecutor`; if you have _data_ moving "
