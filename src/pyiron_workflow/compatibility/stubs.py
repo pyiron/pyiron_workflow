@@ -40,7 +40,7 @@ class _TopLevel:
         "dataclass_node": (
             "Use the `@flowrep.dataclass` to wrap your class into a dataclass, and "
             "convert it to a node with `pyiron_workflow.node`; e.g. "
-            "`wf.dc_node = pyiron_workflow.node(flowrep.dataclass(MyDC), x=1, y=2)."
+            "`wf.dc_node = pyiron_workflow.node(flowrep.dataclass(MyDC), x=1, y=2)`."
         ),
         "for_node": (
             "In the context of parsing a decorated context, you can write for-loops "
@@ -52,7 +52,7 @@ class _TopLevel:
         ),
         "function_node": (
             "Simply cast the function to a node before adding it to a workflow, e.g. "
-            "`wf.function_node = pyiron_workflow.node(some_function)`."
+            "`wf.function_node = pyiron_workflow.node(some_function)`. "
             "For tricky/unparseable functions, you have the power to define how the "
             "function will be executed and how its IO will be exposed by writing a "
             "flowrep atomic recipe directly using `flowrep.schemas.AtomicRecipe`."
@@ -92,11 +92,11 @@ _TRANSFORMER_MESSAGE = (
     "There is no special pyiron_workflow or flowrep tool for this, but the flowrep "
     "user guide outlines how power-users can create recipes for data transformation "
     "that reference very flexible functions, including those which accept variadic "
-    "input"
+    "input."
 )
 _STORAGE_MESSAGE = (
     "Flowrep-based pyiron_workflow does not enforce a particular storage paradigm; "
-    "recipes are save-able as plain-test JSON by virtue of all flowrep recipes being "
+    "recipes are save-able as plain-text JSON by virtue of all flowrep recipes being "
     "pydantic models -- just write the `some_recipe.model_dump_json(indent=2)` string "
     "to file however you please. For storing completed `Run` output or "
     "`flowrep.schemas.NodeData` output, we recommend using bagofholding; "
