@@ -75,7 +75,7 @@ class _TopLevel:
             "`my_recipe = flowrep.atomic(some_function).flowrep_recipe`. Note that "
             "these recipes are callable (e.g., `my_recipe(1, 2)`) and can be used as "
             "nodes in a pyiron_workflow workflow (e.g., "
-            "`wf.my_node = pwf.node(my_recipe, y=2)`)."
+            "`wf.my_node = pyiron_workflow.node(my_recipe, y=2)`)."
         ),
         "while_node": (
             "In the context of parsing a decorated context, you can write while-loops "
@@ -149,7 +149,7 @@ class _ApiSubmodule:
             "python syntax that flowrep knows how to parse as a macro (cf. the flowrep "
             "docs). Note that these recipes are callable (e.g., `my_recipe(1, 2)`) and "
             "can be used as nodes in a pyiron_workflow workflow (e.g., "
-            "`wf.my_subgraph = pwf.node(my_macro_recipe, y=2)`)."
+            "`wf.my_subgraph = pyiron_workflow.node(my_macro_recipe, y=2)`)."
         ),
         # "as_macro_node": available via compatibility wrapper
         "macro_node": _TopLevel.NOT_AVAILABLE["macro_node"],
