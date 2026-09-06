@@ -45,10 +45,9 @@ class _TopLevel:
         "for_node": (
             "In the context of parsing a decorated context, you can write for-loops "
             "with constrained but native python code -- see the flowrep user guide. "
-            "Further, it is now always allowed to directly write a flowrep for-loop "
-            "recipe with `flowrep.schemas.ForEachRecipe` and turn that into a "
-            "pyiron_workflow node, e.g. "
-            "`wf.for_node = pyiron_workflow.node(my_foreach_recipe)`."
+            "Further, you can directly write a flowrep for-loop recipe with "
+            "`flowrep.schemas.ForEachRecipe` and turn that into a pyiron_workflow node, "
+            "e.g. `wf.for_node = pyiron_workflow.node(my_foreach_recipe)`."
         ),
         "function_node": (
             "Simply cast the function to a node before adding it to a workflow, e.g. "
@@ -80,10 +79,9 @@ class _TopLevel:
         "while_node": (
             "In the context of parsing a decorated context, you can write while-loops "
             "with constrained but native python code -- see the flowrep user guide. "
-            "Further, it is always allowed to directly write a flowrep while-loop "
-            "recipe with `flowrep.schemas.WhileRecipe` and turn that into a "
-            "pyiron_workflow node, e.g. "
-            "`wf.while_node = pyiron_workflow.node(my_while_recipe)`."
+            "Further, you can directly write a flowrep while-loop recipe with "
+            "`flowrep.schemas.WhileRecipe` and turn that into a pyiron_workflow node, "
+            "e.g. `wf.while_node = pyiron_workflow.node(my_while_recipe)`."
         ),
     }
 
@@ -178,9 +176,7 @@ def _getattr_or_raise(
     if (addendum := scope.RELOCATED.get(name)) is not None:
         raise RemovedFeatureError(
             f"{name} is available at a different location in this version of "
-            f"pyiron_workflow. {addendum} Note that while they share the same role "
-            f"and name, technical differences may exist between the new and old "
-            f"objects. {messages.DOWNGRADE}",
+            f"pyiron_workflow. {addendum} {messages.DOWNGRADE}",
             name=name,
         )
     if (addendum := scope.NOT_AVAILABLE.get(name)) is not None:
