@@ -31,7 +31,7 @@ classifiers = [
 ]
 dependencies = [
     "executorlib==1.10.2",
-    "flowrep==0.6.3",
+    "flowrep==0.6.5",
     "pint==0.25.3",
     "pyiron_snippets==1.5.0",
     "rdflib==7.6.0",
