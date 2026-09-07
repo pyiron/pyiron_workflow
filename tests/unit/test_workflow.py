@@ -3490,5 +3490,65 @@ class TestLegacyInitWarningAttribution(unittest.TestCase):
         self.assertEqual(construction_line, caught[0].lineno)
 
 
+class TestLegacyInitPositionalArgs(unittest.TestCase):
+    """
+    0.17.0 took child nodes as `*nodes`; today the second positional is `undo_limit`,
+    so the legacy call has to fail loudly instead of quietly mis-binding a node to it.
+    """
+
+    def test_node_as_second_positional_raises(self) -> None:
+        with self.assertRaises(TypeError) as ctx:
+            workflow_node.Workflow("wf", _fixtures.atomic_add_node("child"))
+        self.assertIn("undo_limit", str(ctx.exception))
+
+    def test_several_node_positionals_raise(self) -> None:
+        with self.assertRaises(TypeError) as ctx:
+            workflow_node.Workflow(
+                "wf",
+                _fixtures.atomic_add_node("a"),
+                _fixtures.atomic_sub_node("b"),
+            )
+        self.assertIn("positional", str(ctx.exception))
+
+    def test_valid_undo_limit_with_a_trailing_positional_raises(self) -> None:
+        # `undo_limit` is fine here; it is the argument after it that has nowhere to go.
+        with self.assertRaises(TypeError):
+            workflow_node.Workflow("wf", 5, _fixtures.atomic_add_node("child"))
+
+    def test_failure_is_immediate_and_legible(self) -> None:
+        # Unguarded, this only surfaced much later out of `collections.deque`, as a
+        # bare "an integer is required".
+        with self.assertRaises(TypeError) as ctx:
+            workflow_node.Workflow("wf", _fixtures.atomic_add_node("child"))
+        self.assertNotIn("an integer is required", str(ctx.exception))
+
+    def test_message_reports_the_offending_argument(self) -> None:
+        with self.assertRaises(TypeError) as ctx:
+            workflow_node.Workflow("wf", "not_an_undo_limit")
+        self.assertIn("not_an_undo_limit", str(ctx.exception))
+
+    def test_message_points_at_the_migration_path(self) -> None:
+        with self.assertRaises(TypeError) as ctx:
+            workflow_node.Workflow("wf", _fixtures.atomic_add_node("child"))
+        message = str(ctx.exception)
+        self.assertIn("0.17.0", message)
+        self.assertIn("user_guide", message)
+        self.assertIn(compatibility.DOWNGRADE, message)
+
+    def test_positional_failure_preempts_the_kwarg_warning(self) -> None:
+        # Nothing is salvageable once the positionals are wrong, so don't also nag.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            with self.assertRaises(TypeError):
+                workflow_node.Workflow(
+                    "wf", _fixtures.atomic_add_node("child"), autorun=True
+                )
+        self.assertEqual([], caught)
+
+    def test_supported_positionals_still_work(self) -> None:
+        self.assertEqual(10, workflow_node.Workflow("wf").undo_stack.maxlen)
+        self.assertEqual(5, workflow_node.Workflow("wf", 5).undo_stack.maxlen)
+
+
 if __name__ == "__main__":
     unittest.main()
