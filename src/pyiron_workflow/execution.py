@@ -294,6 +294,8 @@ def _run(
     elif config._prime_mover is None:
         config = dataclasses.replace(config, _prime_mover=node.lexical_path)
 
+    _validate_input_available(node, input_data)
+
     if _current_run is None:
         current_run = Run[ResultType](
             lexical_path=lexical.LexicalPath(node.label),
@@ -334,6 +336,20 @@ def _run(
             current_run.finished_at, current_run.lexical_path, current_run.status
         )
     return current_run
+
+
+class InputDataUnavailable(ValueError):
+    """When you try to run a node without enough input data"""
+
+
+def _validate_input_available(node: datatypes.Node, input_data: dict[str, Any]):
+    required = {port.label for port in node.inputs.values() if not port.has_default}
+    missing = required - input_data.keys()
+    if missing:
+        raise InputDataUnavailable(
+            f"Node {node.lexical_path} is missing input data for: "
+            f"{', '.join(sorted(missing))}"
+        )
 
 
 def _submit(

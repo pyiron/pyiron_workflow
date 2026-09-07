@@ -1830,16 +1830,15 @@ class TestWorkflowEvaluate(unittest.TestCase):
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(len(run.steps), 1)
 
-    def test_unconnected_workflow_input_does_not_interfere(self) -> None:
+    def test_unconnected_workflow_input_still_counts_as_missing_data(self) -> None:
         # Workflow has an input port that is not wired to any child.
         # The child should still evaluate using its own defaults (1*2=2).
         wf = _fixtures.build_workflow(
             inputs=["unused"],
             node_specs={"m": _fixtures.multiply_with_defaults_node},
         )
-        run = wf.run()
-        self.assertEqual(run.status, execution.RunStatus.FINISHED)
-        self.assertEqual(run.steps[0].result.output_ports["output_0"].value, 2)
+        with self.assertRaisesRegex(execution.InputDataUnavailable, "unused"):
+            wf.run()
 
     def test_no_output_edges_run_finishes_with_empty_outputs(self) -> None:
         wf = _fixtures.build_workflow(
