@@ -456,6 +456,21 @@ class TestRunNodeLike(unittest.TestCase):
 
 
 class TestRunFailurePath(unittest.TestCase):
+    def test_insufficient_input_never_gets_off_the_ground(self):
+        node = _fixtures.atomic_add_node()
+        with self.assertRaises(execution.InputDataUnavailable) as ctx:
+            node.run(x=1)
+        self.assertIn(
+            "y",
+            str(ctx.exception),
+            msg="message should direct us to the input we're missing",
+        )
+        self.assertNotIn(
+            "x",
+            str(ctx.exception),
+            msg="We provided x-data, so it shouldn't show up in the complaint",
+        )
+
     def test_failure_records_state_and_dumps(self) -> None:
         node = _make_failing_node()
 
