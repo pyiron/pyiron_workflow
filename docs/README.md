@@ -35,7 +35,7 @@ See the [pyproject file](../pyproject.toml) for optional dependencies to unlock 
 
 ## Migrating from an older version
 
-Versions of `pyiron_workflow` <0.17.0 pre-date `flowrep`. [Version 0.18.0](https://github.com/pyiron/pyiron_workflow/tree/pyiron_workflow-0.18.0) offers old and flowrep-based implementations concurrently, and includes a compatibility module and notebook to aid with migration.
+Versions of `pyiron_workflow` <0.17.0 pre-date `flowrep`; [Version 0.18.0](https://github.com/pyiron/pyiron_workflow/tree/pyiron_workflow-0.18.0) offers old and flowrep-based implementations concurrently, and includes a compatibility module and notebook to aid with migration; From [version 0.19.0](https://github.com/pyiron/pyiron_workflow/tree/pyiron_workflow-0.19.0) onwards, only the flowrep-based implementation is available. However, the API still offers `@as_function_node` and `@as_macro_node` decorators which turn functions into constructors for the new, modern node instances, and all other legacy API elements will provide a hint on the path forwards when they fail to import. The [upgrading notebook](../notebooks/upgrading.ipynb) gives some tips on managing minor syntactic differences and migrating to `@flowrep.workflow`-decorated node libraries.
 
 ## Citing
 

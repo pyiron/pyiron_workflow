@@ -290,6 +290,9 @@ def pulled_workflow(
 ) -> workflow_node.Workflow:
     cone, _ = _build_cone(node, break_out_of_context, expose_defaults)
     wf = workflow_node.Workflow(f"pulled_{node.label}")
+    # A pulled cone is machinery, not a workflow the user wrote and might have
+    # expected legacy automatic IO from; a fully-satisfied cone exposes no input.
+    wf._warn_legacy_io = False
     for label, member in cone.members.items():
         wf.add_node(member.copy(label))
     if cone.internal_edges:

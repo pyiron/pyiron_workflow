@@ -6,8 +6,9 @@ import dataclasses
 import functools
 import itertools
 import types
+import warnings
 from collections.abc import Callable, MutableMapping
-from typing import TYPE_CHECKING, Any, Self, cast
+from typing import TYPE_CHECKING, Any, Generic, Self, cast
 
 import flowrep as fr
 import semantikon
@@ -44,23 +45,62 @@ def is_nodelike(value: object) -> bool:
     )
 
 
-class MutablePortMap(
-    datatypes.PortMap[datatypes.PortType, "Workflow"],
+class _MutablePortMap(
     MutableMapping[fr.schemas.Label, datatypes.PortType],
+    Generic[datatypes.PortType],
 ):
+    """
+    Mutation behaviour for a `Workflow`-owned port map.
+    Avoids a diamond inheritance structure, but attribute declaration must stay
+    synced with `datatypes.PortMap`.
+    """
+
+    _pwf_lexical_map__data: dict[fr.schemas.Label, datatypes.PortType]
+    _pwf_lexical_map__owner: Workflow
+
     def __setitem__(self, key: fr.schemas.Label, value: datatypes.PortType):
+        owner = self._pwf_lexical_map__owner
+        if not isinstance(value, datatypes.Port):
+            # Item and attribute assignment play very different roles on an input map,
+            # so send the likely-confused caller to the other one
+            hint = (
+                f"To set the source for an _existing_ input, use attribute assignment "
+                f"-- {owner.label}.inputs.{key} = ... -- or call the node: "
+                f"{owner.label}({key}=...)."
+                if isinstance(self, datatypes.InputMap)
+                else "Outputs take their values from the node's own execution."
+            )
+            raise TypeError(
+                f"Item assignment on {type(self).__name__} registers a "
+                f"{datatypes.Port.__name__} under a label, but {key!r} got {value!r}. "
+                + hint
+            )
         if key in self._pwf_lexical_map__data:
             raise _duplicate_entry_error(self._pwf_lexical_map__owner, key, "port")
-        owner = self._pwf_lexical_map__owner
         if value.owner is not owner:
             raise ValueError(
                 f"Port {key!r} already has owner {value.owner.lexical_path!r} and cannot "
                 f"be assigned to a port map with owner {owner.lexical_path!r}"
             )
+        if key != value.label:
+            raise ValueError(
+                f"Port being assigned to {key!r} already has label {value.label!r} and "
+                f"cannot be assigned to a map where key and label mismatch."
+            )
         self._pwf_lexical_map__data[key] = value
 
     def __delitem__(self, key: fr.schemas.Label):
         del self._pwf_lexical_map__data[key]
+
+
+class MutableInputMap(
+    datatypes.InputMap["Workflow"], _MutablePortMap[datatypes.InputPort]
+): ...
+
+
+class MutableOutputMap(
+    datatypes.OutputMap["Workflow"], _MutablePortMap[datatypes.OutputPort]
+): ...
 
 
 class MutableNodeMap(
@@ -79,8 +119,8 @@ class MutableNodeMap(
             )
         if key != value.label:
             raise ValueError(
-                f"Node {key!r} already has label {value.label!r} and cannot be assigned "
-                f"to a node map with label {value.label!r}."
+                f"Node being assigned to {key!r} already has label {value.label!r} and "
+                f"cannot be assigned to a map where key and label mismatch."
             )
         value._owner = self._pwf_lexical_map__owner
         self._pwf_lexical_map__data[key] = value
@@ -124,13 +164,18 @@ class Workflow(datatypes.MutableDag):
     this level.
     """
 
-    _inputs: MutablePortMap[datatypes.InputPort]
-    _outputs: MutablePortMap[datatypes.OutputPort]
+    _inputs: MutableInputMap
+    _outputs: MutableOutputMap
     _nodes: MutableNodeMap
     _edges: datatypes.EdgeList
     _diff_accumulator: actions.GraphDiff | None
     undo_stack: collections.deque[actions.GraphDiff]
     redo_stack: collections.deque[actions.GraphDiff]
+
+    # Class-level default, so ordinary workflows carry no extra instance state.
+    # Machinery that builds a transient workflow on the user's behalf (`pull`) opts
+    # out, since the legacy-IO nudge is only meaningful for a workflow a user wrote.
+    _warn_legacy_io: bool = True
 
     @classmethod
     def from_recipe(
@@ -177,9 +222,43 @@ class Workflow(datatypes.MutableDag):
         label: fr.schemas.Label | None = None,
         undo_limit: int = 10,
         /,
+        *_legacy_args,
         **connections: datatypes.Port | datatypes.Node | fr.schemas.JSONABLE,
     ):
+        if not isinstance(undo_limit, int) or len(_legacy_args) > 0:
+            from pyiron_workflow import compatibility  # noqa: PLC0415
+
+            raise TypeError(
+                f"`Workflow` takes positional `label: str` and "
+                f"(optional) `undo_limit: int = 10` arguments, but in addition to the "
+                f"label, received {[undo_limit] + list(_legacy_args)}.\n\n"
+                f"In version <=0.17.0, the `Workflow` class took child nodes as "
+                f"positional arguments. If this was your intent, please read the new "
+                f"readme at: https://pyiron-workflow.readthedocs.io/en/latest/source/notebooks/user_guide.html\n\n"
+                f"{compatibility.DOWNGRADE}"
+            )
         if connections:
+            _legacy_kwargs = (
+                "delete_existing_savefiles",
+                "autoload",
+                "autorun",
+                "checkpoint",
+                "strict_naming",
+                "inputs_map",
+                "outputs_map",
+                "automate_execution",
+            )
+            if used_legacy := connections.keys() & _legacy_kwargs:
+                from pyiron_workflow import compatibility  # noqa: PLC0415
+
+                warnings.warn(
+                    f"It looks like you tried to use legacy kwargs when instantiating "
+                    f"a workflow: {used_legacy}.\n"
+                    f"The new, flowrep-based implementation of pyiron_workflow does "
+                    f"not accept these; please read the new user guide at: https://pyiron-workflow.readthedocs.io/en/latest/source/notebooks/user_guide.html\n\n"
+                    f"{compatibility.DOWNGRADE}",
+                    stacklevel=2,
+                )
             raise TypeError(
                 f"A new {self.__class__.__name__} has no input ports, so it cannot "
                 f"accept the connection(s) {list(connections.keys())!r} at "
@@ -194,8 +273,8 @@ class Workflow(datatypes.MutableDag):
         self._pending_constants = {}
         self.executor = None
         self.last_run = None
-        self._inputs = MutablePortMap[datatypes.InputPort](self)
-        self._outputs = MutablePortMap[datatypes.OutputPort](self)
+        self._inputs = MutableInputMap(self)
+        self._outputs = MutableOutputMap(self)
         self._nodes = MutableNodeMap(self)
         self._edges: datatypes.EdgeList = []
         self._diff_accumulator: actions.GraphDiff | None = None
@@ -250,11 +329,11 @@ class Workflow(datatypes.MutableDag):
             self.add_node(to_add)
 
     @property
-    def inputs(self) -> MutablePortMap[datatypes.InputPort]:
+    def inputs(self) -> MutableInputMap:
         return self._inputs
 
     @property
-    def outputs(self) -> MutablePortMap[datatypes.OutputPort]:
+    def outputs(self) -> MutableOutputMap:
         return self._outputs
 
     @property
@@ -297,6 +376,40 @@ class Workflow(datatypes.MutableDag):
             else:
                 annotation = pwf_port.type_hint
             flowrep_port.annotation = annotation
+
+    def _emit_legacy_io_warning(self, message: str) -> None:
+        """Point a caller who expected legacy automatic IO at the modern equivalent.
+
+        `stacklevel=3` so the warning lands on whoever called :meth:`run`: one frame
+        for this helper, one for :meth:`run` itself.
+        """
+        from pyiron_workflow import compatibility  # noqa: PLC0415 -- cycle guard
+
+        warnings.warn(f"{message}\n\n{compatibility.DOWNGRADE}", stacklevel=3)
+
+    def run(
+        self, config: execution.RunConfig | None = None, /, **input_data
+    ) -> execution.Run[execution.ResultType]:
+        """Run this workflow, warning first if it has no IO to speak of."""
+        if self._warn_legacy_io and len(self.inputs) == 0:
+            self._emit_legacy_io_warning(
+                f"{self.lexical_path!r} has no input ports, so running it takes no "
+                f"data. Older versions of pyiron_workflow exposed every unfed child "
+                f"input automatically; call "
+                f"`set_inputs_to_unconnected_child_input` to reproduce that "
+                f"behaviour, or build the input you want with `create_input` and/or "
+                f"`create_input_for`."
+            )
+        if self._warn_legacy_io and len(self.outputs) == 0:
+            self._emit_legacy_io_warning(
+                f"{self.lexical_path!r} has no output ports, so running it "
+                f"produces no data. Older versions of pyiron_workflow exposed every "
+                f"unconnected child output automatically; call "
+                f"`set_outputs_to_unconnected_child_output` to reproduce that "
+                f"behaviour, or build the output you want with `create_output` and/or "
+                f"`create_output_from`."
+            )
+        return super().run(config, **input_data)
 
     def evaluate(
         self,
@@ -439,11 +552,9 @@ class Workflow(datatypes.MutableDag):
         old: datatypes.InputPort | datatypes.OutputPort,
         new: datatypes.InputPort | datatypes.OutputPort,
     ) -> actions.ReplacePort:
+        target_map: MutableInputMap | MutableOutputMap
         if old.label in self.inputs and self.inputs[old.label] is old:
-            target_map: (
-                MutablePortMap[datatypes.InputPort]
-                | MutablePortMap[datatypes.OutputPort]
-            ) = self.inputs
+            target_map = self.inputs
         elif old.label in self.outputs and self.outputs[old.label] is old:
             target_map = self.outputs
         else:
@@ -609,6 +720,57 @@ class Workflow(datatypes.MutableDag):
         self._replace_port(resolved, new_port)
 
     @_undoable
+    def set_inputs_to_unconnected_child_input(
+        self, remove_existing: bool = True, build_for_defaults: bool = False
+    ) -> None:
+        """
+        Replace this workflow's input with one port per dangling child input.
+
+        Reproduces the automatic IO of pre-flowrep :mod:`pyiron_workflow`: every child
+        input port that is not already the target of an edge gets a workflow input
+        port of its own, wired to it. New ports are labelled ``"{child}__{port}"`` so
+        that children sharing a port label cannot collide. They never carry a default
+        value, even where their child destination has one, since workflow input holds
+        no data of its own.
+
+        Args:
+            remove_existing (bool): Whether to discard the existing input ports, and
+                the edges leaving them, before rebuilding. (Default is True, discard
+                them; False raises instead when any input port is present.)
+            build_for_defaults (bool): Whether to also expose child input that already
+                has a default value available. (Default is False, leave defaulted
+                input to its default.)
+
+        Raises:
+            ValueError: If this workflow already has input and `remove_existing` is
+                False.
+        """
+        existing = list(self.inputs.values())
+        if len(existing) > 0:
+            if not remove_existing:
+                raise ValueError(
+                    f"{self.lexical_path!r} already has input port(s) "
+                    f"{[p.label for p in existing]!r}. Pass `remove_existing=True` to "
+                    f"replace them, or drop them yourself with `remove_input`."
+                )
+            self.remove_input(*existing)
+
+        # Any pre-existing input was just removed along with the edges leaving it (or
+        # we raised), so every child-targeting edge left here comes from a sibling.
+        connected = {
+            (edge.target.node, edge.target.port)
+            for edge in self.edges
+            if isinstance(edge.target, fr.schemas.TargetHandle)
+        }
+        for child in self.nodes.values():
+            for port in child.inputs.values():
+                if (child.label, port.label) in connected:
+                    continue
+                if port.has_default and not build_for_defaults:
+                    continue
+                self.create_input_for(port, label=f"{child.label}__{port.label}")
+
+    @_undoable
     def create_output(
         self,
         label: fr.schemas.Label,
@@ -679,6 +841,69 @@ class Workflow(datatypes.MutableDag):
             self._remove_edge(edge)
             self._add_edge(rewritten)
         self._replace_port(resolved, new_port)
+
+    @_undoable
+    def set_outputs_to_unconnected_child_output(
+        self, remove_existing: bool = True
+    ) -> None:
+        """
+        Replace this workflow's output with one port per dangling child output.
+
+        Reproduces the automatic IO of pre-flowrep :mod:`pyiron_workflow`: every child
+        output port that is not already the source of an edge gets a workflow output
+        port of its own, wired to it. New ports are labelled ``"{child}__{port}"`` so
+        that children sharing a port label cannot collide.
+
+        Args:
+            remove_existing (bool): Whether to discard the existing output ports, and
+                the edges feeding them, before rebuilding. (Default is True, discard
+                them; False raises instead when any output port is present.)
+
+        Raises:
+            ValueError: If this workflow already has output and `remove_existing` is
+                False.
+        """
+        existing = list(self.outputs.values())
+        if len(existing) > 0:
+            if not remove_existing:
+                raise ValueError(
+                    f"{self.lexical_path!r} already has output port(s) "
+                    f"{[p.label for p in existing]!r}. Pass `remove_existing=True` to "
+                    f"replace them, or drop them yourself with `remove_output`."
+                )
+            self.remove_output(*existing)
+
+        # Any pre-existing output was just removed along with the edges feeding it (or
+        # we raised), so every child-sourced edge left here feeds a sibling's input.
+        connected = {
+            (edge.source.node, edge.source.port)
+            for edge in self.edges
+            if isinstance(edge.source, fr.schemas.SourceHandle)
+        }
+        for child in self.nodes.values():
+            for port in child.outputs.values():
+                if (child.label, port.label) not in connected:
+                    self.create_output_from(port, label=f"{child.label}__{port.label}")
+
+    @_undoable
+    def set_io_to_unconnected_child_io(
+        self, remove_existing: bool = True, build_for_defaults: bool = False
+    ) -> None:
+        """
+        Replace this workflow's IO with one port per dangling child IO port.
+
+        Args:
+            remove_existing (bool): Whether to discard the existing IO ports, and
+                the edges connecting them, before rebuilding. (Default is True, discard
+                them; False raises instead when any IO port is present.)
+            build_for_defaults (bool): Whether to also expose child input that already
+                has a default value available. (Default is False, leave defaulted
+                input to its default.)
+        """
+        self.set_inputs_to_unconnected_child_input(
+            remove_existing=remove_existing, build_for_defaults=build_for_defaults
+        )
+        self.set_outputs_to_unconnected_child_output(remove_existing=remove_existing)
 
     @_undoable
     def add_port_hint(
