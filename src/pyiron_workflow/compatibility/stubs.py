@@ -43,8 +43,9 @@ class _TopLevel:
             "`wf.dc_node = pyiron_workflow.node(flowrep.dataclass(MyDC), x=1, y=2)`."
         ),
         "for_node": (
-            "In the context of parsing a decorated context, you can write for-loops "
-            "with constrained but native python code -- see the flowrep user guide. "
+            "In the context of parsing a `@flowrep.workflow`-decorated function, you "
+            "can write for-loops with constrained but native python code -- see the "
+            "flowrep user guide. "
             "Further, you can directly write a flowrep for-loop recipe with "
             "`flowrep.schemas.ForEachRecipe` and turn that into a pyiron_workflow node, "
             "e.g. `wf.for_node = pyiron_workflow.node(my_foreach_recipe)`."
@@ -77,8 +78,9 @@ class _TopLevel:
             "`wf.my_node = pyiron_workflow.node(my_recipe, y=2)`)."
         ),
         "while_node": (
-            "In the context of parsing a decorated context, you can write while-loops "
-            "with constrained but native python code -- see the flowrep user guide. "
+            "In the context of parsing a `@flowrep.workflow`-decorated function, you "
+            "can write while-loops with constrained but native python code -- see the "
+            "flowrep user guide. "
             "Further, you can directly write a flowrep while-loop recipe with "
             "`flowrep.schemas.WhileRecipe` and turn that into a pyiron_workflow node, "
             "e.g. `wf.while_node = pyiron_workflow.node(my_while_recipe)`."
