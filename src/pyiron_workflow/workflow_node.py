@@ -222,8 +222,21 @@ class Workflow(datatypes.MutableDag):
         label: fr.schemas.Label | None = None,
         undo_limit: int = 10,
         /,
+        *_legacy_args,
         **connections: datatypes.Port | datatypes.Node | fr.schemas.JSONABLE,
     ):
+        if not isinstance(undo_limit, int) or len(_legacy_args) > 0:
+            from pyiron_workflow import compatibility  # noqa: PLC0415
+
+            raise TypeError(
+                f"`Workflow` takes positional `label: str` and "
+                f"(optional) `undo_limit: int = 10` arguments, but in addition to the "
+                f"label, received {[undo_limit] + list(_legacy_args)}.\n\n"
+                f"In version <=0.17.0, the `Workflow` class took child nodes as "
+                f"positional arguments. If this was your intent, please read the new "
+                f"readme at: https://pyiron-workflow.readthedocs.io/en/latest/source/notebooks/user_guide.html\n\n"
+                f"{compatibility.DOWNGRADE}"
+            )
         if connections:
             _legacy_kwargs = (
                 "delete_existing_savefiles",
