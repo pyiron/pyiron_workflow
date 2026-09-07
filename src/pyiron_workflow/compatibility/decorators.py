@@ -114,6 +114,8 @@ class _CompatibilityFactory(abc.ABC):
         self._received_function = func
         self._output_labels = output_labels
         self._decorated = None
+        # Brute force the generation of the decorated object to fail early on bad syntax
+        _ = self.decorated
 
     @staticmethod
     @abc.abstractmethod
@@ -156,7 +158,10 @@ class _CompatibilityFactory(abc.ABC):
     @staticmethod
     def _override_metadata(func: types.FunctionType):
         original_ref = func.flowrep_recipe.reference  # type: ignore[attr-defined]
-        new_qualname = func.__qualname__ + ".decorated"
+        if not func.__qualname__.endswith(".decorated"):
+            new_qualname = func.__qualname__ + ".decorated"
+        else:
+            new_qualname = func.__qualname__
 
         func_info = versions.VersionInfo.of(func)
         replacement_info = versions.VersionInfo(

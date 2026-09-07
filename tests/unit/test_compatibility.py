@@ -145,7 +145,6 @@ def too_few_labels(self, x, y):
     return self.s, self.t
 
 
-@compatibility.as_macro_node("both")
 def returns_multi_output_node(self, a, b):
     self.t = two_outputs(a=a, b=b)
     return self.t
@@ -307,18 +306,13 @@ class TestMacroOutputLabels(unittest.TestCase):
         self.assertEqual(run.outputs.s, 3)
 
     def test_incommensurate_explicit_labels_raise(self) -> None:
-        factory = compatibility.as_macro_node("only_one")(too_few_labels)
-        # Can't declare this locally because it hits the "no locals" error first,
-        # so instead in-line the decorator function
-
         with self.assertRaisesRegex(
             ValueError,
             "Found 2 return values, but got an incommensurate number of labels",
         ):
-            # To fail early, we'd need to explicitly parse the number of return values
-            # from the function. It's just not worth re-running that infrastructure
-            # just to fail earlier, so live with failing only at node-usage time.
-            factory()
+            compatibility.as_macro_node("only_one")(too_few_labels)
+            # Can't declare this locally because it hits the "no locals" error first,
+            # so instead in-line the decorator function
 
     def test_dotted_inline_return_without_local_binding_gives_default(self) -> None:
         n = dotted_return()
@@ -358,9 +352,9 @@ class TestUnsupportedReturns(unittest.TestCase):
         # A node with more than one output port cannot be collapsed to a single
         # returned value -- the conversion raises rather than guessing.
         with self.assertRaisesRegex(ValueError, "please choose individual ports."):
-            returns_multi_output_node()
-            # Again, it would be nice to fail earlier, but it's just not worth the
-            # extra work
+            compatibility.as_macro_node("both")(returns_multi_output_node)
+            # Can't declare this locally because it hits the "no locals" error first,
+            # so instead in-line the decorator function
 
 
 class TestRenderHelper(unittest.TestCase):
