@@ -15,6 +15,13 @@ from concurrent import futures
 
 from unit import _fixtures
 
+try:
+    import graphviz  # noqa: F401
+
+    HAS_GRAPHVIZ = True
+except ImportError:
+    HAS_GRAPHVIZ = False
+
 from pyiron_workflow import (
     atomic_node,
     compatibility,
@@ -589,6 +596,43 @@ class TestPortMapSetattr(unittest.TestCase):
     def test_pickle_round_trip(self) -> None:
         round_trip = pickle.loads(pickle.dumps(self.n))
         self.assertEqual(list(self.n.outputs.keys()), list(round_trip.outputs.keys()))
+
+
+class TestDraw(unittest.TestCase):
+    """`Node.draw` is a thin passthrough to `flowrep`'s recipe drawing."""
+
+    def setUp(self) -> None:
+        self.n = _fixtures.nested_macro_node()
+
+    @unittest.skipUnless(HAS_GRAPHVIZ, "requires the optional 'graphviz' dependency")
+    def test_draws_the_recipe(self) -> None:
+        self.assertEqual(
+            self.n.recipe.draw().source,
+            self.n.draw().source,
+            msg="Drawing a node must be identical to drawing its recipe",
+        )
+
+    @unittest.skipUnless(HAS_GRAPHVIZ, "requires the optional 'graphviz' dependency")
+    def test_depth_is_forwarded(self) -> None:
+        self.assertEqual(
+            self.n.recipe.draw(depth=0).source,
+            self.n.draw(depth=0).source,
+            msg="An explicit depth must reach flowrep",
+        )
+        self.assertNotEqual(
+            self.n.draw(depth=0).source,
+            self.n.draw(depth=1).source,
+            msg="Depth must actually change how much of the nested graph expands",
+        )
+
+    @unittest.skipUnless(HAS_GRAPHVIZ, "requires the optional 'graphviz' dependency")
+    def test_default_depth_defers_to_flowrep(self) -> None:
+        self.assertEqual(
+            self.n.draw(depth=1).source,
+            self.n.draw().source,
+            msg="`None` must pass through so flowrep's prospective default of 1 "
+            "applies, rather than being coerced to some depth of our own",
+        )
 
 
 if __name__ == "__main__":

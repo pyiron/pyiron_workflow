@@ -22,6 +22,8 @@ import semantikon
 from pyiron_workflow import execution, injection, lexical
 
 if TYPE_CHECKING:
+    import graphviz
+
     from pyiron_workflow import actions
 
 
@@ -279,6 +281,25 @@ class Node(
     def get_output(self, port: OutputPort | fr.schemas.Label) -> OutputPort:
         """A flexible wrapper to access outputs by object or by label"""
         return lexical.get_item_from_map(port, self.outputs, "output port")
+
+    def draw(self, depth: int | None = None) -> graphviz.Digraph:
+        """
+        Draw this node's prospective :attr:`recipe` view.
+
+        A thin wrapper on :meth:`flowrep.schemas.NodeRecipe.draw`; see
+        :meth:`pyiron_workflow.execution.Run.draw` for the retrospective counterpart.
+
+        Args:
+            depth: How many generations of nested subgraph to expand below this node's
+                own children. The node itself always expands. Defaults to 1.
+
+        Returns:
+            The drawn graph.
+
+        Raises:
+            ImportAlarmError: If the optional drawing dependency is missing.
+        """
+        return self.recipe.draw(depth=depth)
 
     def run(
         self, config: execution.RunConfig | None = None, /, **input_data
