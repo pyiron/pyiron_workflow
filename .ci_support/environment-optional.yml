@@ -2,3 +2,4 @@ channels:
 - conda-forge
 dependencies:
 - fleche =0.21.2
+- python-graphviz =0.21

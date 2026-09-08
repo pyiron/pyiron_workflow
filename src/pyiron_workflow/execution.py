@@ -25,6 +25,8 @@ with import_alarm.ImportAlarm(
     from fleche.caches import BaseCache, Cache
 
 if TYPE_CHECKING:
+    import graphviz
+
     from pyiron_workflow import constructors, datatypes
 
 
@@ -139,6 +141,27 @@ class Run(Generic[ResultType]):
     @property
     def label(self) -> str:
         return lexical.get_label(self.lexical_path)
+
+    def draw(self, depth: int | None = None) -> graphviz.Digraph:
+        """
+        Draw this run's retrospective :attr:`result` data view.
+
+        A thin wrapper on :meth:`flowrep.schemas.NodeData.draw`. Unlike the
+        prospective :meth:`pyiron_workflow.datatypes.Node.draw`, flow controls appear
+        here in their executed form, e.g. with one body per loop iteration. This shows
+        the shape of the result, not its data -- use :meth:`result.view` for that.
+
+        Args:
+            depth: How many generations of nested subgraph to expand below this run's
+                own children. The run itself always expands. Defaults to 0.
+
+        Returns:
+            The drawn graph.
+
+        Raises:
+            ImportAlarmError: If the optional drawing dependency is missing.
+        """
+        return self.result.draw(depth=depth)
 
 
 class Steps(list[Run[Any]]):
