@@ -5,7 +5,7 @@ dependencies:
 - coverage
 - executorlib =1.5.3
 - fleche =0.21.0
-- flowrep =0.6.5
+- flowrep =0.6.6
 - hatchling =1.27.0
 - hatch-vcs =0.5.0
 - pint =0.24
