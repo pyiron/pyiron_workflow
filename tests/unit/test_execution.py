@@ -24,6 +24,13 @@ try:
 except ImportError:
     HAS_FLECHE = False
 
+try:
+    import graphviz  # noqa: F401
+
+    HAS_GRAPHVIZ = True
+except ImportError:
+    HAS_GRAPHVIZ = False
+
 # --------------------------------------------------------------------------- #
 # Helper subclasses                                                           #
 # --------------------------------------------------------------------------- #
@@ -456,6 +463,21 @@ class TestRunNodeLike(unittest.TestCase):
 
 
 class TestRunFailurePath(unittest.TestCase):
+    def test_insufficient_input_never_gets_off_the_ground(self):
+        node = _fixtures.atomic_add_node()
+        with self.assertRaises(execution.InputDataUnavailable) as ctx:
+            node.run(x=1)
+        self.assertIn(
+            "y",
+            str(ctx.exception),
+            msg="message should direct us to the input we're missing",
+        )
+        self.assertNotIn(
+            "x",
+            str(ctx.exception),
+            msg="We provided x-data, so it shouldn't show up in the complaint",
+        )
+
     def test_failure_records_state_and_dumps(self) -> None:
         node = _make_failing_node()
 
@@ -782,6 +804,44 @@ class TestRunConfigFlecheCache(unittest.TestCase):
     def test_rejects_cache_when_unavailable(self):
         with self.assertRaises(ImportError):
             execution.RunConfig(fleche_cache=object())
+
+
+class TestRunDraw(unittest.TestCase):
+    """`Run.draw` is a thin passthrough to `flowrep`'s result drawing."""
+
+    def setUp(self) -> None:
+        self.run = _fixtures.nested_macro_node().run(x=1, y=2)
+
+    @unittest.skipUnless(HAS_GRAPHVIZ, "requires the optional 'graphviz' dependency")
+    def test_draws_the_result(self) -> None:
+        self.assertEqual(
+            self.run.result.draw().source,
+            self.run.draw().source,
+            msg="Drawing a run must be identical to drawing its result",
+        )
+
+    @unittest.skipUnless(HAS_GRAPHVIZ, "requires the optional 'graphviz' dependency")
+    def test_depth_is_forwarded(self) -> None:
+        self.assertEqual(
+            self.run.result.draw(depth=1).source,
+            self.run.draw(depth=1).source,
+            msg="An explicit depth must reach flowrep",
+        )
+        self.assertNotEqual(
+            self.run.draw(depth=0).source,
+            self.run.draw(depth=1).source,
+            msg="Depth must actually change how much of the nested graph expands",
+        )
+
+    @unittest.skipUnless(HAS_GRAPHVIZ, "requires the optional 'graphviz' dependency")
+    def test_default_depth_defers_to_flowrep(self) -> None:
+        self.assertEqual(
+            self.run.draw(depth=0).source,
+            self.run.draw().source,
+            msg="`None` must pass through so flowrep's retrospective default of 0 "
+            "applies -- note this differs from the prospective default of 1, which "
+            "is exactly why we must not coerce it ourselves",
+        )
 
 
 if __name__ == "__main__":

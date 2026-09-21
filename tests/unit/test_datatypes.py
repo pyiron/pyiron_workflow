@@ -9,12 +9,26 @@ from __future__ import annotations
 
 import datetime
 import pathlib
+import pickle
 import unittest
 from concurrent import futures
 
 from unit import _fixtures
 
-from pyiron_workflow import atomic_node, dag, datatypes, execution
+try:
+    import graphviz  # noqa: F401
+
+    HAS_GRAPHVIZ = True
+except ImportError:
+    HAS_GRAPHVIZ = False
+
+from pyiron_workflow import (
+    atomic_node,
+    compatibility,
+    dag,
+    datatypes,
+    execution,
+)
 
 
 class TestPort(unittest.TestCase):
@@ -456,6 +470,169 @@ class TestUnknownTargetGuard(unittest.TestCase):
             n._establish_sources(typo=1)
         self.assertEqual({}, n._pending_constants)
         self.assertEqual({}, n._pending_connections)
+
+
+class TestInputMapSetattr(unittest.TestCase):
+    """Attribute assignment on an input map is sugar for `Node._establish_sources`."""
+
+    def setUp(self) -> None:
+        self.n = _fixtures.atomic_add_node("n")
+        self.src = _fixtures.atomic_add_node("src")
+
+    def test_jsonable_value_becomes_a_pending_constant(self) -> None:
+        self.n.inputs.y = 5
+        self.assertEqual({"y": 5}, self.n._pending_constants)
+
+    def test_port_becomes_a_pending_connection(self) -> None:
+        port = self.src.outputs["output_0"]
+        self.n.inputs.x = port
+        self.assertIs(port, self.n._pending_connections["x"])
+
+    def test_node_source_coerces_to_port(self) -> None:
+        self.n.inputs.x = self.src
+        self.assertIs(self.src.outputs["output_0"], self.n._pending_connections["x"])
+
+    def test_unknown_port_raises(self) -> None:
+        with self.assertRaises(KeyError) as ctx:
+            self.n.inputs.typo = 5
+        self.assertIn("typo", str(ctx.exception))
+        self.assertIn(
+            "x", str(ctx.exception), msg="The available ports should be advertised"
+        )
+
+    def test_unknown_port_stashes_nothing(self) -> None:
+        with self.assertRaises(KeyError):
+            self.n.inputs.typo = 5
+        self.assertEqual({}, self.n._pending_constants)
+        self.assertEqual({}, self.n._pending_connections)
+
+    def test_non_jsonable_raises_from_establish_sources(self) -> None:
+        with self.assertRaises(TypeError) as ctx:
+            self.n.inputs.x = (1, 2)  # tuples are not JSONable
+        self.assertIn(
+            compatibility.DOWNGRADE,
+            str(ctx.exception),
+            msg="The sugar ought not grow its own copy of the source-type rules; the "
+            "message comes from `_establish_sources`",
+        )
+
+    def test_generic_alias_construction_survives(self) -> None:
+        # `InputMap[Node](...)` leaves typing to assign `__orig_class__` on the fresh
+        # instance, and typing suppresses only AttributeError and TypeError there.
+        # A `__setattr__` that rejects the name outright breaks node construction.
+        self.assertEqual(
+            datatypes.InputMap[datatypes.Node],
+            self.n.inputs.__orig_class__,
+            msg="Internal dunder assignment must bypass the sugar",
+        )
+
+    def test_dunder_port_label_still_gets_the_sugar(self) -> None:
+        # The internal-name bypass is checked _after_ the ports, so that a
+        # dunder-prefixed label (`def f(__x=1)` is legal) cannot silently no-op.
+        # Note the mangling: written as `n.inputs.__x` in this class body, python
+        # would hand `__setattr__` the name `_TestInputMapSetattr__x` instead.
+        n = _fixtures.atomic_add_node("n")
+        label = "__x"
+        object.__setattr__(
+            n.inputs,
+            "_pwf_lexical_map__data",
+            {
+                label: datatypes.InputPort(
+                    label=label, owner=n, type_hint=None, type_metadata=None
+                )
+            },
+        )
+        setattr(n.inputs, label, 5)
+        self.assertEqual(
+            {label: 5},
+            n._pending_constants,
+            msg="A port label wins over the internal-name bypass",
+        )
+        self.assertNotIn(
+            label,
+            n.inputs.__dict__,
+            msg="The sugar must dispatch, not stash a stray attribute",
+        )
+
+    def test_pickle_round_trip(self) -> None:
+        # Slot restoration assigns `_pwf_lexical_map__data` through `__setattr__`
+        round_trip = pickle.loads(pickle.dumps(self.n))
+        self.assertEqual(list(self.n.inputs.keys()), list(round_trip.inputs.keys()))
+        self.assertIs(round_trip, round_trip.inputs["x"].owner)
+
+
+class TestPortMapSetattr(unittest.TestCase):
+    """Only input maps take attribute assignment; the rest must say so."""
+
+    def setUp(self) -> None:
+        self.n = _fixtures.atomic_add_node("n")
+
+    def test_existing_output_raises(self) -> None:
+        with self.assertRaises(TypeError) as ctx:
+            self.n.outputs.output_0 = 5
+        self.assertIn("output_0", str(ctx.exception))
+        self.assertIn(
+            "n",
+            str(ctx.exception),
+            msg="The owner should be identifiable in the message",
+        )
+
+    def test_unknown_name_raises_rather_than_setting_an_attribute(self) -> None:
+        with self.assertRaises(TypeError):
+            self.n.outputs.nonsense = 5
+        self.assertNotIn(
+            "nonsense",
+            self.n.outputs.__dict__,
+            msg="A rejected assignment must not leave a stray attribute behind",
+        )
+
+    def test_generic_alias_construction_survives(self) -> None:
+        self.assertEqual(
+            datatypes.OutputMap[datatypes.Node],
+            self.n.outputs.__orig_class__,
+            msg="Internal dunder assignment must bypass the guard",
+        )
+
+    def test_pickle_round_trip(self) -> None:
+        round_trip = pickle.loads(pickle.dumps(self.n))
+        self.assertEqual(list(self.n.outputs.keys()), list(round_trip.outputs.keys()))
+
+
+class TestDraw(unittest.TestCase):
+    """`Node.draw` is a thin passthrough to `flowrep`'s recipe drawing."""
+
+    def setUp(self) -> None:
+        self.n = _fixtures.nested_macro_node()
+
+    @unittest.skipUnless(HAS_GRAPHVIZ, "requires the optional 'graphviz' dependency")
+    def test_draws_the_recipe(self) -> None:
+        self.assertEqual(
+            self.n.recipe.draw().source,
+            self.n.draw().source,
+            msg="Drawing a node must be identical to drawing its recipe",
+        )
+
+    @unittest.skipUnless(HAS_GRAPHVIZ, "requires the optional 'graphviz' dependency")
+    def test_depth_is_forwarded(self) -> None:
+        self.assertEqual(
+            self.n.recipe.draw(depth=0).source,
+            self.n.draw(depth=0).source,
+            msg="An explicit depth must reach flowrep",
+        )
+        self.assertNotEqual(
+            self.n.draw(depth=0).source,
+            self.n.draw(depth=1).source,
+            msg="Depth must actually change how much of the nested graph expands",
+        )
+
+    @unittest.skipUnless(HAS_GRAPHVIZ, "requires the optional 'graphviz' dependency")
+    def test_default_depth_defers_to_flowrep(self) -> None:
+        self.assertEqual(
+            self.n.draw(depth=1).source,
+            self.n.draw().source,
+            msg="`None` must pass through so flowrep's prospective default of 1 "
+            "applies, rather than being coerced to some depth of our own",
+        )
 
 
 if __name__ == "__main__":
