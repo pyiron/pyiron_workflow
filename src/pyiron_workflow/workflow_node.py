@@ -572,6 +572,8 @@ class Workflow(datatypes.MutableDag):
         self, node: datatypes.Node, new_label: fr.schemas.Label
     ) -> actions.RenameNode:
         old_label = node.label
+        if new_label != old_label and new_label in self.nodes:
+            raise _duplicate_entry_error(self, new_label, "node")
         # Bypass MutableNodeMap.__setitem__ (which rejects relabelling owned nodes)
         del self.nodes[old_label]
         node._label = new_label  # type: ignore[misc]

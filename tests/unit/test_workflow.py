@@ -719,6 +719,36 @@ class TestNodeMutations(unittest.TestCase):
         self.assertIsInstance(tgt, fr.schemas.TargetHandle)
         self.assertEqual(tgt.node, "new")  # type: ignore[union-attr]
 
+    def test_rename_node_collision_leaves_graph_intact(self) -> None:
+        """Renaming onto a taken label raises without partially applying the rename."""
+        a = _fixtures.atomic_add_node("a")
+        b = _fixtures.atomic_add_node("b")
+        self.wf.add_node(a)
+        self.wf.add_node(b)
+        edge = datatypes.EdgeTuple(
+            fr.schemas.SourceHandle(node="a", port="output_0"),
+            fr.schemas.TargetHandle(node="b", port="x"),
+        )
+        self.wf.add_edge(edge)
+        undo_depth = len(self.wf.undo_stack)
+
+        with self.assertRaises(ValueError):
+            self.wf.rename_node("a", "b")
+
+        self.assertIs(self.wf.nodes["a"], a)
+        self.assertIs(self.wf.nodes["b"], b)
+        self.assertEqual(a.label, "a")
+        self.assertIs(a.owner, self.wf)
+        self.assertEqual(self.wf.edges, [edge])
+        self.assertEqual(len(self.wf.undo_stack), undo_depth)
+
+    def test_rename_node_to_own_label(self) -> None:
+        node = _fixtures.atomic_add_node("same")
+        self.wf.add_node(node)
+        self.wf.rename_node("same", "same")
+        self.assertIs(self.wf.nodes["same"], node)
+        self.assertEqual(node.label, "same")
+
 
 class TestEdgeMutations(unittest.TestCase):
     def setUp(self) -> None:
