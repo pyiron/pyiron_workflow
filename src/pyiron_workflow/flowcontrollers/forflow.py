@@ -44,7 +44,7 @@ class ForEach(datatypes.StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEach
     ) -> execution.Run[execution.ResultType]:
         result = run.result
         nodes = self._build_runtime_dag(run)
-        dag.evaluate_dag_by_layer(nodes, run, config)
+        dag.evaluate_dag(nodes, run, config)
         dag.populate_outputs(result)
         return run
 

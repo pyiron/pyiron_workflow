@@ -7,6 +7,7 @@ import pathlib
 import tempfile
 import threading
 import unittest
+import warnings
 from concurrent import futures
 from typing import Any
 
@@ -804,6 +805,51 @@ class TestRunConfigFlecheCache(unittest.TestCase):
     def test_rejects_cache_when_unavailable(self):
         with self.assertRaises(ImportError):
             execution.RunConfig(fleche_cache=object())
+
+
+class TestRunConfigDeprecatedDagFields(unittest.TestCase):
+    """The `dag_layers_*` keywords warn and migrate onto their `dag_*` names."""
+
+    CASES = (
+        ("dag_layers_multithreaded", "dag_multithreaded", False),
+        ("dag_layers_max_threads", "dag_max_threads", 3),
+        ("dag_layers_fail_fast", "dag_fail_fast", True),
+    )
+
+    def test_deprecated_field_warns_and_migrates(self) -> None:
+        for old, new, value in self.CASES:
+            with self.subTest(old=old):
+                with self.assertWarns(DeprecationWarning):
+                    config = execution.RunConfig(**{old: value})
+                self.assertEqual(getattr(config, new), value)
+                self.assertIsNone(getattr(config, old))
+
+    def test_deprecated_field_takes_priority(self) -> None:
+        with self.assertWarns(DeprecationWarning):
+            config = execution.RunConfig(
+                dag_multithreaded=True, dag_layers_multithreaded=False
+            )
+        self.assertFalse(config.dag_multithreaded)
+
+    def test_new_fields_do_not_warn(self) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            config = execution.RunConfig(
+                dag_multithreaded=False, dag_max_threads=2, dag_fail_fast=True
+            )
+        self.assertFalse(config.dag_multithreaded)
+        self.assertEqual(config.dag_max_threads, 2)
+        self.assertTrue(config.dag_fail_fast)
+
+    def test_running_with_deprecated_config_warns_once(self) -> None:
+        # `_run` re-creates the config via `dataclasses.replace`, which re-runs
+        # `__post_init__`; the migration must not warn a second time.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            config = execution.RunConfig(dag_layers_multithreaded=False)
+            _fixtures.macro_node().run(config, x=1, y=2, z=3)
+        ours = [w for w in caught if "dag_layers_" in str(w.message)]
+        self.assertEqual(len(ours), 1)
 
 
 class TestRunDraw(unittest.TestCase):

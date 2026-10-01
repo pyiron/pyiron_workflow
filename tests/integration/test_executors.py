@@ -203,8 +203,8 @@ class TestDagParallelism(unittest.TestCase):
         )
 
     def test_without_parallelism(self):
-        cfg_off = wfms.schemas.RunConfig(dag_layers_multithreaded=False)
-        cfg_choked = wfms.schemas.RunConfig(dag_layers_max_threads=1)
+        cfg_off = wfms.schemas.RunConfig(dag_multithreaded=False)
+        cfg_choked = wfms.schemas.RunConfig(dag_max_threads=1)
         for cfg in (cfg_off, cfg_choked):
             with self.subTest(cfg=cfg):
                 t_start = time.time()
