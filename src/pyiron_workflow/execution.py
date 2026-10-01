@@ -9,6 +9,7 @@ import logging
 import multiprocessing
 import pathlib
 import threading
+import warnings
 from collections.abc import Callable, Iterable
 from concurrent import futures
 from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeAlias, TypeVar
@@ -170,6 +171,13 @@ class Steps(list[Run[Any]]):
         return [lexical.get_label(step.label) for step in self]
 
 
+_DEPRECATED_DAG_FIELDS = {
+    "dag_layers_multithreaded": "dag_multithreaded",
+    "dag_layers_max_threads": "dag_max_threads",
+    "dag_layers_fail_fast": "dag_fail_fast",
+}
+
+
 @dataclasses.dataclass(frozen=True)
 class RunConfig:
     run_dir: pathlib.Path = pathlib.Path.cwd()
@@ -179,19 +187,44 @@ class RunConfig:
     exception_hooks: Iterable[
         Callable[[pathlib.Path, Run[ResultType], BaseException], None]
     ] = dataclasses.field(default_factory=list)
-    dag_layers_multithreaded: bool = True
-    dag_layers_max_threads: int = 10
-    dag_layers_fail_fast: bool = False
+    dag_multithreaded: bool = True
+    dag_max_threads: int = 10
+    dag_fail_fast: bool = False
     hooks_max_threads: int = 10
     logger_name: str = __name__
     fleche_cache: Cache | None = None
     _prime_mover: lexical.LexicalPath | None = dataclasses.field(
         default=None, kw_only=True
     )
+    dag_layers_multithreaded: bool | None = dataclasses.field(
+        default=None, kw_only=True
+    )
+    dag_layers_max_threads: int | None = dataclasses.field(default=None, kw_only=True)
+    dag_layers_fail_fast: bool | None = dataclasses.field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
+        self._migrate_deprecated_dag_fields()
         if self.fleche_cache is not None:
             self._assert_fleche_available()
+
+    def _migrate_deprecated_dag_fields(self) -> None:
+        """Move deprecated ``dag_layers_*`` values onto their ``dag_*`` names.
+
+        Deprecated values win. Each is reset to ``None`` afterwards, so a later
+        :func:`dataclasses.replace` (which re-runs ``__post_init__``) does not warn
+        again.
+        """
+        for old, new in _DEPRECATED_DAG_FIELDS.items():
+            value = getattr(self, old)
+            if value is None:
+                continue
+            warnings.warn(
+                f"`RunConfig.{old}` is deprecated; use `RunConfig.{new}` instead.",
+                DeprecationWarning,
+                stacklevel=4,
+            )
+            object.__setattr__(self, new, value)
+            object.__setattr__(self, old, None)
 
     @_import_alarm
     def _assert_fleche_available(self) -> None:

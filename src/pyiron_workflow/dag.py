@@ -77,7 +77,7 @@ def evaluate_dag_by_layer(
     result = run.result
     layers = topo_sort_nodes(nodes, result.edges)
 
-    if config.dag_layers_multithreaded:
+    if config.dag_multithreaded:
         _multithreaded_layers(layers, nodes, run, config)
     else:
         for layer in layers:
@@ -91,9 +91,7 @@ def _multithreaded_layers(
     run: execution.Run[fr.schemas.CompositeData],
     config: execution.RunConfig,
 ):
-    with futures.ThreadPoolExecutor(
-        max_workers=config.dag_layers_max_threads
-    ) as executor:
+    with futures.ThreadPoolExecutor(max_workers=config.dag_max_threads) as executor:
         for layer in layers:
             pending = {
                 executor.submit(evaluate_node, nodes[label], label, run, config): label
@@ -106,7 +104,7 @@ def _multithreaded_layers(
                     continue
                 if not isinstance(exc, Exception):
                     raise exc  # don't defer KeyboardInterrupt / SystemExit
-                if config.dag_layers_fail_fast:
+                if config.dag_fail_fast:
                     raise exc
                 errors[pending[future]] = exc
             if errors:

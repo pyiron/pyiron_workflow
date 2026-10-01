@@ -251,12 +251,12 @@ class TestErrorParallelism(unittest.TestCase):
             self.assertIsInstance(exc, ValueError)
 
     def test_fast_failure_raises_single_error(self):
-        cfg = execution.RunConfig(dag_layers_fail_fast=True)
+        cfg = execution.RunConfig(dag_fail_fast=True)
         with self.assertRaises(ValueError):
             self.double.run(cfg, x=1)
 
     def test_unthreaded_raises_single_error(self):
-        cfg = execution.RunConfig(dag_layers_multithreaded=False)
+        cfg = execution.RunConfig(dag_multithreaded=False)
         with self.assertRaises(ValueError):
             self.double.run(cfg, x=1)
 
