@@ -292,7 +292,7 @@ class ExecutorInstructions:
     def _resolved_kwargs(self) -> dict[str, Any]:
         """:attr:`kwargs`, with a non-``fork`` context forced onto process pools.
 
-        Sibling nodes in a DAG layer are evaluated on separate threads, so pools
+        Sibling nodes in a DAG are evaluated on separate threads, so pools
         built from these instructions can fork concurrently out of a
         multi-threaded parent. That is unsafe regardless -- the child inherits
         locks held by threads that do not exist in it -- and ``filelock >= 3.30``

@@ -6,7 +6,8 @@ Covers the testable surface of `dag.py`:
   `__delitem__`).
 * `Workflow.__init__` and `Workflow.undo_limit` (the only non-stub surface).
 * `Macro` end-to-end via fixtures (children, edges identity, `run`).
-* `evaluate_dag_by_layer` smoke (via a macro run).
+* `evaluate_dag` smoke (via a macro run) and greedy scheduling: punch-through,
+  shared-source in-degree, failure isolation, `BaseException` passthrough.
 * `topo_sort_nodes` for empty / single-layer / linear chain / order-determinism.
 * `gather_target_inputs` for input-edge, sibling-edge, and port-omitted paths.
 * `populate_outputs` for both `SourceHandle` and `InputSource` sources.
@@ -15,6 +16,7 @@ Covers the testable surface of `dag.py`:
 from __future__ import annotations
 
 import pickle
+import threading
 import unittest
 
 import flowrep as fr
@@ -43,6 +45,77 @@ def _double_error(x):
     problem = _problematic(x)
     problem_again = _problematic(x)
     return ok, problem, problem_again
+
+
+_RELEASE_TIMEOUT = 2.0
+_release = threading.Event()
+_RECORDED: list[str] = []
+
+
+@fr.atomic
+def _set_release(x):
+    _release.set()
+    return x
+
+
+@fr.atomic
+def _wait_for_release(x):
+    return _release.wait(timeout=_RELEASE_TIMEOUT)
+
+
+@fr.workflow
+def _punch_through(x):
+    a = _fixtures.plain_increment(x)
+    b = _set_release(a)
+    c = _wait_for_release(x)
+    return b, c
+
+
+@fr.workflow
+def _shared_source(x):
+    a = _fixtures.plain_increment(x)
+    b = _fixtures.plain_increment(a)
+    c = _fixtures.add(a, a)
+    d = _fixtures.add(b, c)
+    return d
+
+
+@fr.atomic
+def _mark_downstream(x):
+    _RECORDED.append("downstream")
+    return x
+
+
+@fr.atomic
+def _mark_independent(x):
+    _RECORDED.append("independent")
+    return x
+
+
+@fr.workflow
+def _failure_isolation(x):
+    problem = _problematic(x)
+    downstream = _mark_downstream(problem)
+    first = _fixtures.plain_increment(x)
+    independent = _mark_independent(first)
+    return downstream, independent
+
+
+class _Abort(BaseException):
+    pass
+
+
+@fr.atomic
+def _abort(x):
+    raise _Abort()
+    return x  # noqa: F841
+
+
+@fr.workflow
+def _abort_and_fail(x):
+    stop = _abort(x)
+    problem = _problematic(x)
+    return stop, problem
 
 
 class TestMacro(unittest.TestCase):
@@ -90,7 +163,7 @@ class TestMacro(unittest.TestCase):
         self.assertIs(dag.Macro._result_type(), fr.schemas.DagData)
 
 
-class TestEvaluateDagByLayer(unittest.TestCase):
+class TestEvaluateDag(unittest.TestCase):
     def test_children_results_attached_to_run(self) -> None:
         n = _fixtures.macro_node()
         run = n.run(x=1, y=2, z=3)
@@ -259,6 +332,37 @@ class TestErrorParallelism(unittest.TestCase):
         cfg = execution.RunConfig(dag_multithreaded=False)
         with self.assertRaises(ValueError):
             self.double.run(cfg, x=1)
+
+
+class TestGreedyScheduling(unittest.TestCase):
+    def setUp(self) -> None:
+        _release.clear()
+        _RECORDED.clear()
+
+    def test_chain_punches_through_slow_sibling(self) -> None:
+        # Layers would be [a, c], [b]: `c` blocks until `b` releases it, so `c`
+        # only sees the release if `b` can start before `c` finishes.
+        macro = dag.Macro(_punch_through.flowrep_recipe, "punch")
+        run = macro.run(x=1)
+        self.assertTrue(run.outputs.c)
+
+    def test_shared_source_counts_every_edge(self) -> None:
+        # `c` takes both ports from `a`, so `a` contributes in-degree 2 to it.
+        macro = dag.Macro(_shared_source.flowrep_recipe, "shared")
+        run = macro.run(x=1)
+        self.assertEqual(run.outputs.d, 7)  # b=3, c=2+2=4, d=3+4
+        self.assertEqual(len(run.steps), 4)
+
+    def test_failure_does_not_stop_independent_branches(self) -> None:
+        macro = dag.Macro(_failure_isolation.flowrep_recipe, "isolation")
+        with self.assertRaises(ValueError):
+            macro.run(x=1)
+        self.assertEqual(_RECORDED, ["independent"])
+
+    def test_base_exception_is_not_grouped(self) -> None:
+        macro = dag.Macro(_abort_and_fail.flowrep_recipe, "abort")
+        with self.assertRaises(_Abort):
+            macro.run(x=1)
 
 
 if __name__ == "__main__":

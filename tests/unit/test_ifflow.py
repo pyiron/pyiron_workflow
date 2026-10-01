@@ -267,7 +267,7 @@ class TestMacroDownstreamOfFalsyIfIsSkipped(unittest.TestCase):
     """
     A sibling consuming an unfired `IfNode`'s output is skipped.
 
-    The behaviour under test lives in `dag.evaluate_dag_by_layer`: when a
+    The behaviour under test lives in `dag.evaluate_dag`: when a
     node's gathered inputs contain `NOT_DATA` (because an upstream
     conditional did not fire), the node is silently skipped instead of being
     executed against the sentinel.

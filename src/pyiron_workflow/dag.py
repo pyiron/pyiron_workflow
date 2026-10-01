@@ -10,6 +10,8 @@ from pyiron_snippets import retrieve
 from pyiron_workflow import constructors, datatypes, execution, lexical, validation
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     import rdflib
 
 
@@ -39,7 +41,7 @@ class Macro(datatypes.ImmutableDag):
         run: execution.Run[execution.ResultType],
         config: execution.RunConfig,
     ) -> execution.Run[execution.ResultType]:
-        evaluate_dag_by_layer(self.nodes, run, config)
+        evaluate_dag(self.nodes, run, config)
         populate_outputs(run.result)
         return run
 
@@ -69,51 +71,102 @@ class Macro(datatypes.ImmutableDag):
         return None
 
 
-def evaluate_dag_by_layer(
+def evaluate_dag(
     nodes: datatypes.NodeMap,
     run: execution.Run[fr.schemas.CompositeData],
     config: execution.RunConfig,
 ) -> None:
-    result = run.result
-    layers = topo_sort_nodes(nodes, result.edges)
-
     if config.dag_multithreaded:
-        _multithreaded_layers(layers, nodes, run, config)
+        _evaluate_greedily(nodes, run, config)
     else:
-        for layer in layers:
+        for layer in topo_sort_nodes(nodes, run.result.edges):
             for label in layer:
                 evaluate_node(nodes[label], label, run, config)
 
 
-def _multithreaded_layers(
-    layers: list[list[fr.schemas.Label]],
+def _evaluate_greedily(
     nodes: datatypes.NodeMap,
     run: execution.Run[fr.schemas.CompositeData],
     config: execution.RunConfig,
-):
+) -> None:
+    """
+    Kahn's algorithm driven by thread completion: each node is submitted as soon
+    as its last sibling dependency finishes, so chains are not held back by
+    unrelated slow siblings. All bookkeeping happens on the calling thread.
+
+    A node that raises never releases its successors. Unless failing fast, every
+    branch independent of the failure still runs to completion before the
+    collected errors are raised.
+    """
+    in_degree, successors = _dependency_graph(nodes, run.result.edges)
+    errors: list[Exception] = []
     with futures.ThreadPoolExecutor(max_workers=config.dag_max_threads) as executor:
-        for layer in layers:
-            pending = {
-                executor.submit(evaluate_node, nodes[label], label, run, config): label
-                for label in layer
-            }
-            errors: dict[str, Exception] = {}
-            for future in futures.as_completed(pending):
+        roots = [label for label, degree in in_degree.items() if degree == 0]
+        pending = _submit(executor, roots, nodes, run, config)
+        while pending:
+            done, _ = futures.wait(pending, return_when=futures.FIRST_COMPLETED)
+            ready: list[fr.schemas.Label] = []
+            for future in done:
+                label = pending.pop(future)
                 exc = future.exception()
                 if exc is None:
-                    continue
-                if not isinstance(exc, Exception):
+                    ready.extend(_release(label, in_degree, successors))
+                elif not isinstance(exc, Exception) or config.dag_fail_fast:
                     raise exc  # don't defer KeyboardInterrupt / SystemExit
-                if config.dag_fail_fast:
-                    raise exc
-                errors[pending[future]] = exc
-            if errors:
-                if len(errors) == 1:
-                    raise errors.popitem()[1]
                 else:
-                    raise ExceptionGroup(
-                        f"{len(errors)} node(s) failed in layer", list(errors.values())
-                    )
+                    errors.append(exc)
+            pending.update(_submit(executor, ready, nodes, run, config))
+    if len(errors) == 1:
+        raise errors[0]
+    if errors:
+        raise ExceptionGroup(f"{len(errors)} node(s) failed", errors)
+
+
+def _submit(
+    executor: futures.Executor,
+    labels: Iterable[fr.schemas.Label],
+    nodes: datatypes.NodeMap,
+    run: execution.Run[fr.schemas.CompositeData],
+    config: execution.RunConfig,
+) -> dict[futures.Future[None], fr.schemas.Label]:
+    return {
+        executor.submit(evaluate_node, nodes[label], label, run, config): label
+        for label in sorted(labels)
+    }
+
+
+def _dependency_graph(
+    nodes: Iterable[fr.schemas.Label], edges: fr.schemas.Edges
+) -> tuple[dict[fr.schemas.Label, int], dict[fr.schemas.Label, list[fr.schemas.Label]]]:
+    """In-degree and successor lists over sibling edges.
+
+    A target fed several ports by the same source counts each edge, and appears
+    that many times among the source's successors, so the counts stay balanced.
+    """
+    in_degree: dict[fr.schemas.Label, int] = dict.fromkeys(nodes, 0)
+    successors: dict[fr.schemas.Label, list[fr.schemas.Label]] = {
+        label: [] for label in in_degree
+    }
+    for target, source in edges.items():
+        if target.node not in in_degree or source.node not in successors:
+            continue  # Skip edges that cross batch boundaries (e.g. While iterations)
+        in_degree[target.node] += 1
+        successors[source.node].append(target.node)
+    return in_degree, successors
+
+
+def _release(
+    label: fr.schemas.Label,
+    in_degree: dict[fr.schemas.Label, int],
+    successors: dict[fr.schemas.Label, list[fr.schemas.Label]],
+) -> list[fr.schemas.Label]:
+    """Mark `label` finished; return the successors that just became ready."""
+    released = []
+    for successor in successors[label]:
+        in_degree[successor] -= 1
+        if in_degree[successor] == 0:
+            released.append(successor)
+    return released
 
 
 def topo_sort_nodes(
@@ -122,36 +175,23 @@ def topo_sort_nodes(
     """
     Kahn's algorithm over sibling edges, grouped into independent layers.
 
-    Each layer contains nodes whose dependencies all live in earlier layers, so
-    members of a layer may be executed concurrently. Deterministic tie-breaking
-    by label within each layer.
+    Each layer contains nodes whose dependencies all live in earlier layers.
+    Deterministic tie-breaking by label within each layer.
     """
-    in_degree: dict[fr.schemas.Label, int] = dict.fromkeys(nodes, 0)
-    successors: dict[fr.schemas.Label, list[fr.schemas.Label]] = {
-        label: [] for label in nodes
-    }
-
-    for target, source in edges.items():
-        if target.node not in in_degree or source.node not in successors:
-            continue  # Skip edges that cross batch boundaries (e.g. While iterations)
-        in_degree[target.node] += 1
-        successors[source.node].append(target.node)
-
-    current_layer = sorted(label for label in nodes if in_degree[label] == 0)
+    in_degree, successors = _dependency_graph(nodes, edges)
+    current_layer = sorted(label for label, degree in in_degree.items() if degree == 0)
     layers: list[list[fr.schemas.Label]] = []
     processed = 0
     while current_layer:
         layers.append(current_layer)
         processed += len(current_layer)
-        next_layer: list[str] = []
-        for label in current_layer:
-            for succ in successors.get(label, []):
-                in_degree[succ] -= 1
-                if in_degree[succ] == 0:
-                    next_layer.append(succ)
-        current_layer = sorted(next_layer)
+        current_layer = sorted(
+            successor
+            for label in current_layer
+            for successor in _release(label, in_degree, successors)
+        )
 
-    if processed != len(nodes):  # pragma: no cover
+    if processed != len(in_degree):  # pragma: no cover
         raise ValueError(
             "Cycle detected in workflow edges. This should have been caught by the "
             "underlying recipe validation. Please raise a GitHub issue reporting "

@@ -416,7 +416,7 @@ class Workflow(datatypes.MutableDag):
         run: execution.Run[execution.ResultType],
         config: execution.RunConfig,
     ) -> execution.Run[execution.ResultType]:
-        dag.evaluate_dag_by_layer(self.nodes, run, config)
+        dag.evaluate_dag(self.nodes, run, config)
         dag.populate_outputs(run.result)
         return run
 

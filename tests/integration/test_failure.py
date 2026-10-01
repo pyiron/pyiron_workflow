@@ -262,8 +262,8 @@ class TestForEachFailure(unittest.TestCase):
         for_each_step = run_obj.steps[1]
         self.assertEqual(len(for_each_step.steps), 7)
 
-        # Bodies all sit in one DAG layer and are evaluated concurrently, so the
-        # order they land in `steps` is a race. Go by label inside a layer, not by step
+        # Bodies are independent and evaluated concurrently, so the order they
+        # land in `steps` is a race. Go by label, not by step position
         self.assertEqual(for_each_result.nodes["body_0"].output_ports["m"].value, 0)
         self.assertEqual(for_each_result.nodes["body_4"].output_ports["m"].value, 4)
         self.assertTrue(
