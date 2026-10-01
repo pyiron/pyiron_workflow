@@ -1,6 +1,8 @@
 from pyiron_workflow.constructors import atomictype2node as atomictype2node
+from pyiron_workflow.constructors import macro2workflow as macro2workflow
 from pyiron_workflow.constructors import node as node
 from pyiron_workflow.constructors import recipe2node as recipe2node
+from pyiron_workflow.constructors import workflow2macro as workflow2macro
 from pyiron_workflow.execution import run as run
 from pyiron_workflow.executorlib import NodeSingleExecutor as NodeSingleExecutor
 from pyiron_workflow.executorlib import NodeSlurmExecutor as NodeSlurmExecutor
