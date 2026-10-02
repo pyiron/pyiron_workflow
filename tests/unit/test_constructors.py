@@ -646,6 +646,52 @@ class TestEdgeList2Edges(unittest.TestCase):
             constructors.edgelist2edges(edges, scope="bad_owner")
         self.assertIn("bad_owner", str(ctx.exception))
 
+    def test_multiply_sourced_targets_raise(self) -> None:
+        edges: datatypes.EdgeList = [
+            datatypes.EdgeTuple(
+                fr.schemas.SourceHandle(node="a", port="output_0"),
+                fr.schemas.TargetHandle(node="c", port="x"),
+            ),
+            datatypes.EdgeTuple(
+                fr.schemas.SourceHandle(node="b", port="output_0"),
+                fr.schemas.TargetHandle(node="c", port="x"),
+            ),
+            datatypes.EdgeTuple(
+                fr.schemas.InputSource(port="y"),
+                fr.schemas.TargetHandle(node="c", port="y"),
+            ),
+            datatypes.EdgeTuple(
+                fr.schemas.SourceHandle(node="a", port="output_0"),
+                fr.schemas.TargetHandle(node="c", port="y"),
+            ),
+            datatypes.EdgeTuple(
+                fr.schemas.InputSource(port="y"),
+                fr.schemas.OutputTarget(port="out"),
+            ),
+            datatypes.EdgeTuple(
+                fr.schemas.SourceHandle(node="c", port="output_0"),
+                fr.schemas.OutputTarget(port="out"),
+            ),
+        ]
+        with self.assertRaises(ValueError) as ctx:
+            constructors.edgelist2edges(edges, scope="owner")
+        msg = str(ctx.exception)
+        self.assertIn("owner", msg)
+        for line in (
+            "c.x: a.output_0->c.x, b.output_0->c.x",
+            "c.y: y->c.y, a.output_0->c.y",
+            "out: y->out, c.output_0->out",
+        ):
+            self.assertIn(line, msg)
+
+    def test_repeated_identical_edge_is_not_a_conflict(self) -> None:
+        edge = datatypes.EdgeTuple(
+            fr.schemas.SourceHandle(node="a", port="output_0"),
+            fr.schemas.TargetHandle(node="b", port="x"),
+        )
+        inp, peer, out = constructors.edgelist2edges([edge, edge])
+        self.assertEqual(peer, {edge.target: edge.source})
+
 
 class TestWorkflow2Macro(unittest.TestCase):
     def _build_wf(self) -> workflow_node.Workflow:
