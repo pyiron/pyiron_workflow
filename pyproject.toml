@@ -52,14 +52,14 @@ Repository = "https://github.com/pyiron/pyiron_workflow"
 
 [project.optional-dependencies]
 cluster = [
-    "pysqa==0.4.4",
+    "pysqa==1.0.1",
     "h5py==3.16.0",
 ]
 notebook = [
     "python-workflow-definition==0.1.5",
 ]
 fleche = [
-    "fleche==0.21.2",
+    "fleche==0.22.1",
 ]
 drawing = [
     "flowrep[drawing]",
