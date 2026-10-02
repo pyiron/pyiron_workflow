@@ -1,5 +1,6 @@
 channels:
 - conda-forge
 dependencies:
+- executorlib =1.10.3
 - pysqa =1.0.1
 - h5py =3.16.0

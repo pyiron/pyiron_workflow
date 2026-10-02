@@ -7,7 +7,6 @@ dependencies:
 - sphinx-gallery
 - sphinx-rtd-theme
 - versioneer
-- executorlib =1.10.3
 - flowrep =0.6.6
 - hatchling =1.32.4
 - hatch-vcs =0.5.0
@@ -18,5 +17,6 @@ dependencies:
 - typeguard =4.6.0
 - python =3.14
 - python-workflow-definition =0.1.5
+- executorlib =1.10.3
 - fleche =0.22.1
 - python-graphviz =0.21

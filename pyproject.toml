@@ -30,7 +30,6 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-    "executorlib==1.10.3",
     "flowrep==0.6.6",
     "pint==0.25.3",
     "pyiron_snippets==1.5.0",
@@ -51,9 +50,13 @@ Documentation = "https://pyiron-workflow.readthedocs.io"
 Repository = "https://github.com/pyiron/pyiron_workflow"
 
 [project.optional-dependencies]
+executorlib = [
+    "executorlib==1.10.3",
+]
 cluster = [
     "pysqa==1.0.1",
     "h5py==3.16.0",
+    "pyiron_workflow[executorlib]",
 ]
 notebook = [
     "python-workflow-definition==0.1.5",
