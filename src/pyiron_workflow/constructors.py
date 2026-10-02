@@ -180,6 +180,7 @@ def edgelist2edges(
     edges: datatypes.EdgeList,
     scope: str = "<unknown EdgeList owner>",
 ) -> tuple[fr.schemas.InputEdges, fr.schemas.Edges, fr.schemas.OutputEdges]:
+    _raise_on_multiply_sourced_targets(edges, scope)
     inp: fr.schemas.InputEdges = {}
     peer: fr.schemas.Edges = {}
     out: fr.schemas.OutputEdges = {}
@@ -202,6 +203,28 @@ def edgelist2edges(
                 f"input/peer/output buckets: {source!r} -> {target!r}"
             )
     return inp, peer, out
+
+
+def _raise_on_multiply_sourced_targets(edges: datatypes.EdgeList, scope: str) -> None:
+    """Flowrep edge dicts are keyed by target, so a target with several sources
+    would silently keep only the last one; fail loudly instead."""
+    seen: dict[
+        fr.schemas.OutputTarget | fr.schemas.TargetHandle, datatypes.EdgeList
+    ] = {}
+    for edge in edges:
+        sourced = seen.setdefault(edge.target, [])
+        if edge not in sourced:
+            sourced.append(edge)
+    if conflicts := {t: e for t, e in seen.items() if len(e) > 1}:
+        raise ValueError(
+            f"{scope} has targets with multiple sources; each target may have at "
+            f"most one source:\n"
+            + "\n".join(
+                f"\t{target.serialize()}: "
+                + ", ".join(f"{s.serialize()}->{t.serialize()}" for s, t in sourced)
+                for target, sourced in conflicts.items()
+            )
+        )
 
 
 def _copy_port_annotations(
