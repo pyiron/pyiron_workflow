@@ -10,7 +10,6 @@ from pyiron_workflow import (
     dag,
     datatypes,
     execution,
-    transformers,
 )
 
 
@@ -88,7 +87,9 @@ class ForEach(datatypes.StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEach
         # Scatter nodes
         for label, length in scattered_length_map.items():
             result_scatter_label = self._scatter_label(label)
-            scatter_node = transformers.Transform1toN(length).node(result_scatter_label)
+            scatter_node = constructors.recipe2node(
+                fr.schemas.Transform1toN(length).recipe, result_scatter_label
+            )
             runtime_map[result_scatter_label] = scatter_node
             result.nodes[result_scatter_label] = (
                 scatter_node.generate_flowrep_live_node()
@@ -103,7 +104,9 @@ class ForEach(datatypes.StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEach
         # Aggregator nodes
         for label in recipe.outputs:
             result_aggregator_label = self._aggregate_label(label)
-            aggregator_node = transformers.TransformNto1(total_steps).node(label)
+            aggregator_node = constructors.recipe2node(
+                fr.schemas.TransformNto1(total_steps).recipe, label
+            )
             runtime_map[result_aggregator_label] = aggregator_node
             result.nodes[result_aggregator_label] = (
                 aggregator_node.generate_flowrep_live_node()
@@ -123,7 +126,7 @@ class ForEach(datatypes.StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEach
             # parent to scatters (nested and zipped alike)
             fr.schemas.TargetHandle(
                 node=self._scatter_label(parent_port),
-                port=transformers.Transform1toN.input_label,
+                port=fr.schemas.Transform1toN.input_label,
             ): fr.schemas.InputSource(port=parent_port)
             for parent_port in scattered_length_map
         }
@@ -147,7 +150,7 @@ class ForEach(datatypes.StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEach
                 port=child_port,
             ): fr.schemas.SourceHandle(
                 node=self._scatter_label(parent_port),
-                port=transformers.Transform1toN.output_label(
+                port=fr.schemas.Transform1toN.output_label(
                     (i // nested_strides[parent_port]) % nested_length_map[parent_port]
                 ),
             )
@@ -162,7 +165,7 @@ class ForEach(datatypes.StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEach
                     port=child_port,
                 ): fr.schemas.SourceHandle(
                     node=self._scatter_label(parent_port),
-                    port=transformers.Transform1toN.output_label(i % zipped_multiplier),
+                    port=fr.schemas.Transform1toN.output_label(i % zipped_multiplier),
                 )
                 for child_port, parent_port in zipped_label_map.items()
                 for i in range(total_steps)
@@ -173,7 +176,7 @@ class ForEach(datatypes.StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEach
                 # bodies to aggregators (genuinely 1:1)
                 fr.schemas.TargetHandle(
                     node=self._aggregate_label(parent_port),
-                    port=transformers.TransformNto1.input_label(i),
+                    port=fr.schemas.TransformNto1.input_label(i),
                 ): fr.schemas.SourceHandle(
                     node=self._body_label(body_label, i),
                     port=child_port,
@@ -190,10 +193,10 @@ class ForEach(datatypes.StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEach
             {
                 fr.schemas.TargetHandle(
                     node=self._aggregate_label(aggregate_label),
-                    port=transformers.TransformNto1.input_label(i),
+                    port=fr.schemas.TransformNto1.input_label(i),
                 ): fr.schemas.SourceHandle(
                     node=self._scatter_label(scatter_label),
-                    port=transformers.Transform1toN.output_label(
+                    port=fr.schemas.Transform1toN.output_label(
                         (i // nested_strides[scatter_label])
                         % nested_length_map[scatter_label]
                     ),
@@ -208,10 +211,10 @@ class ForEach(datatypes.StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEach
             {
                 fr.schemas.TargetHandle(
                     node=self._aggregate_label(aggregate_label),
-                    port=transformers.TransformNto1.input_label(i),
+                    port=fr.schemas.TransformNto1.input_label(i),
                 ): fr.schemas.SourceHandle(
                     node=self._scatter_label(scatter_label),
-                    port=transformers.Transform1toN.output_label(i % zipped_multiplier),
+                    port=fr.schemas.Transform1toN.output_label(i % zipped_multiplier),
                 )
                 for aggregate_label, scatter_label in transfer_label_map.items()
                 if scatter_label in zipped_length_map
@@ -226,7 +229,7 @@ class ForEach(datatypes.StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEach
                 port=label,
             ): fr.schemas.SourceHandle(
                 node=self._aggregate_label(label),
-                port=transformers.TransformNto1.output_label,
+                port=fr.schemas.TransformNto1.output_label,
             )
             for label in recipe.outputs
         }
