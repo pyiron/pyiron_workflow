@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+import warnings
 
 import flowrep as fr
 from unit import _fixtures
@@ -10,7 +11,26 @@ from unit import _fixtures
 from pyiron_workflow import atomic_node, execution, transformers
 
 
-class TestTransform1toN(unittest.TestCase):
+class _IgnoreDeprecation(unittest.TestCase):
+    """Behaviour tests for the deprecated classes, without warning noise."""
+
+    def setUp(self) -> None:
+        self.enterContext(warnings.catch_warnings())
+        warnings.simplefilter("ignore", DeprecationWarning)
+
+
+class TestDeprecation(unittest.TestCase):
+    def test_instantiation_warns_at_caller(self) -> None:
+        for cls in (transformers.Transform1toN, transformers.TransformNto1):
+            with self.subTest(cls=cls.__name__):
+                with self.assertWarnsRegex(
+                    DeprecationWarning, f"flowrep.schemas.{cls.__name__}"
+                ) as ctx:
+                    cls(2)
+                self.assertEqual(ctx.filename, __file__)
+
+
+class TestTransform1toN(_IgnoreDeprecation):
     def test_input_label_class_constant(self) -> None:
         self.assertEqual(transformers.Transform1toN.input_label, "items")
 
@@ -77,7 +97,7 @@ class TestTransform1toN(unittest.TestCase):
             transformers.Transform1toN(0)
 
 
-class TestTransformNto1(unittest.TestCase):
+class TestTransformNto1(_IgnoreDeprecation):
     def test_output_label_class_constant(self) -> None:
         self.assertEqual(transformers.TransformNto1.output_label, "output_0")
 

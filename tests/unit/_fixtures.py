@@ -151,8 +151,8 @@ def annotated_wf(
 # Autoencoder (round-trips TransformNto1 -> Transform1toN)                    #
 # --------------------------------------------------------------------------- #
 
-_COMPRESS = wfms.schemas.TransformNto1(3)
-_EXPAND = wfms.schemas.Transform1toN(3)
+_COMPRESS = fr.schemas.TransformNto1(3)
+_EXPAND = fr.schemas.Transform1toN(3)
 
 
 @fr.workflow

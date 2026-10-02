@@ -5,7 +5,7 @@ import unittest
 import flowrep as fr
 from unit import _fixtures
 
-from pyiron_workflow import datatypes, execution, transformers
+from pyiron_workflow import datatypes, execution
 from pyiron_workflow.flowcontrollers import forflow
 
 
@@ -160,7 +160,7 @@ class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
         scatter_input = self.dag_run.result.input_edges[
             fr.schemas.TargetHandle(
                 node="scatter_xs",
-                port=transformers.Transform1toN.input_label,
+                port=fr.schemas.Transform1toN.input_label,
             )
         ]
         self.assertEqual(scatter_input, fr.schemas.InputSource(port="xs"))
@@ -174,7 +174,7 @@ class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
                 src,
                 fr.schemas.SourceHandle(
                     node="scatter_xs",
-                    port=transformers.Transform1toN.output_label(i),
+                    port=fr.schemas.Transform1toN.output_label(i),
                 ),
             )
 
@@ -190,7 +190,7 @@ class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
             src = self.dag_run.result.edges[
                 fr.schemas.TargetHandle(
                     node="aggregate_sums",
-                    port=transformers.TransformNto1.input_label(i),
+                    port=fr.schemas.TransformNto1.input_label(i),
                 )
             ]
             self.assertEqual(
@@ -203,7 +203,7 @@ class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
             src,
             fr.schemas.SourceHandle(
                 node="aggregate_sums",
-                port=transformers.TransformNto1.output_label,
+                port=fr.schemas.TransformNto1.output_label,
             ),
         )
 
@@ -256,7 +256,7 @@ class TestBuildRuntimeDagEmptyIteration(unittest.TestCase):
                     dag_run.result.output_edges[fr.schemas.OutputTarget(port="sums")],
                     fr.schemas.SourceHandle(
                         node="aggregate_sums",
-                        port=transformers.TransformNto1.output_label,
+                        port=fr.schemas.TransformNto1.output_label,
                     ),
                 )
 
@@ -285,7 +285,7 @@ class TestBuildRuntimeDagSingleNested(unittest.TestCase):
             src,
             fr.schemas.SourceHandle(
                 node="scatter_xs",
-                port=transformers.Transform1toN.output_label(0),
+                port=fr.schemas.Transform1toN.output_label(0),
             ),
         )
 
@@ -317,14 +317,14 @@ class TestBuildRuntimeDagZippedOnly(unittest.TestCase):
                 x_src,
                 fr.schemas.SourceHandle(
                     node="scatter_xs",
-                    port=transformers.Transform1toN.output_label(i % 3),
+                    port=fr.schemas.Transform1toN.output_label(i % 3),
                 ),
             )
             self.assertEqual(
                 y_src,
                 fr.schemas.SourceHandle(
                     node="scatter_ys",
-                    port=transformers.Transform1toN.output_label(i % 3),
+                    port=fr.schemas.Transform1toN.output_label(i % 3),
                 ),
             )
 
@@ -366,21 +366,21 @@ class TestBuildRuntimeDagMixed(unittest.TestCase):
                 x_src,
                 fr.schemas.SourceHandle(
                     node="scatter_xs",
-                    port=transformers.Transform1toN.output_label(nested_idx),
+                    port=fr.schemas.Transform1toN.output_label(nested_idx),
                 ),
             )
             self.assertEqual(
                 y_src,
                 fr.schemas.SourceHandle(
                     node="scatter_ys",
-                    port=transformers.Transform1toN.output_label(zipped_idx),
+                    port=fr.schemas.Transform1toN.output_label(zipped_idx),
                 ),
             )
             self.assertEqual(
                 z_src,
                 fr.schemas.SourceHandle(
                     node="scatter_ws",
-                    port=transformers.Transform1toN.output_label(zipped_idx),
+                    port=fr.schemas.Transform1toN.output_label(zipped_idx),
                 ),
             )
             observed_pairs.add((nested_idx, zipped_idx))
@@ -467,7 +467,7 @@ class TestBuildRuntimeDagBroadcastOnly(unittest.TestCase):
         src = self.dag_run.result.edges[
             fr.schemas.TargetHandle(
                 node="aggregate_out",
-                port=transformers.TransformNto1.input_label(0),
+                port=fr.schemas.TransformNto1.input_label(0),
             )
         ]
         self.assertEqual(src, fr.schemas.SourceHandle(node="body_0", port="output_0"))

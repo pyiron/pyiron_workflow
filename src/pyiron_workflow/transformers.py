@@ -1,3 +1,4 @@
+import warnings
 from collections.abc import Callable
 from typing import Any, ClassVar
 
@@ -5,6 +6,16 @@ import flowrep as fr
 from pyiron_snippets import versions
 
 from pyiron_workflow import atomic_node
+
+
+def _warn_deprecated(name: str) -> None:
+    warnings.warn(
+        f"`pyiron_workflow.api.schemas.{name}` is deprecated; use "
+        f"`flowrep.schemas.{name}` instead, and cast its `.recipe` to a node with "
+        f"`pyiron_workflow.node(...)`.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
 
 
 class Transform1toN:
@@ -23,6 +34,7 @@ class Transform1toN:
         return items[0]
 
     def __init__(self, n: int):
+        _warn_deprecated(type(self).__name__)
         if n < 1:
             raise ValueError(f"Cannot scatter into {n} outputs; need at least 1.")
         self.n = n
@@ -67,6 +79,7 @@ class TransformNto1:
         return list(items)
 
     def __init__(self, n: int):
+        _warn_deprecated(type(self).__name__)
         self.n = n
 
     @property

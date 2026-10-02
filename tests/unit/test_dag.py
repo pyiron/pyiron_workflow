@@ -162,6 +162,10 @@ class TestMacro(unittest.TestCase):
     def test_result_type_classmethod(self) -> None:
         self.assertIs(dag.Macro._result_type(), fr.schemas.DagData)
 
+    def test_transformer_children_round_trip_values(self) -> None:
+        run = _fixtures.autoencoder_node().run(a=1, b=20, c=300)
+        self.assertEqual((run.outputs.x, run.outputs.y, run.outputs.z), (1, 20, 300))
+
 
 class TestEvaluateDag(unittest.TestCase):
     def test_children_results_attached_to_run(self) -> None:

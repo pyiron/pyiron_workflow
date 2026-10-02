@@ -7,7 +7,7 @@ import flowrep as fr
 from pyiron_snippets import versions
 from unit import _fixtures
 
-from pyiron_workflow import atomic_node, execution, transformers
+from pyiron_workflow import atomic_node, execution
 
 # --------------------------------------------------------------------------- #
 # Module-level helpers (must be importable by flowrep / VersionInfo).         #
@@ -117,11 +117,24 @@ class TestCallAtomic(unittest.TestCase):
     def test_positional_only_routing(self) -> None:
         # `Transform1toN` marks `items` as POSITIONAL_ONLY, so the value
         # must be routed through `*positional` rather than `**keyword`.
-        node = transformers.Transform1toN(2).node("split")
+        node = atomic_node.Atomic(fr.schemas.Transform1toN(2).recipe, "split")
         live = node.generate_flowrep_live_node()
         live.input_ports["items"].value = [1, 2]
         result = atomic_node._call_atomic(live)
         self.assertEqual(result, (1, 2))
+
+    def test_single_output_recipe_receives_whole_return(self) -> None:
+        node = atomic_node.Atomic(fr.schemas.Transform1toN(1).recipe, "scatter")
+        self.assertEqual(
+            dict(execution.run(node, items=[42]).outputs), {"output_0": 42}
+        )
+
+    def test_multi_output_recipe_unpacks_return(self) -> None:
+        node = atomic_node.Atomic(fr.schemas.Transform1toN(2).recipe, "scatter")
+        self.assertEqual(
+            dict(execution.run(node, items=[1, 2]).outputs),
+            {"output_0": 1, "output_1": 2},
+        )
 
     def test_keyword_routing(self) -> None:
         node = _fixtures.atomic_add_node()

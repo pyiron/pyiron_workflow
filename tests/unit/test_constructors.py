@@ -13,7 +13,6 @@ from pyiron_workflow import (
     dag,
     datatypes,
     flowcontrollers,
-    transformers,
     workflow_node,
 )
 
@@ -413,12 +412,12 @@ class TestFunction2Node(unittest.TestCase):
 
 class TestRecipe2Node(unittest.TestCase):
     def test_atomic_recipe_returns_atomic(self) -> None:
-        recipe = transformers.Transform1toN(2).recipe
+        recipe = fr.schemas.Transform1toN(2).recipe
         n = constructors.recipe2node(recipe)
         self.assertIsInstance(n, atomic_node.Atomic)
 
     def test_label(self) -> None:
-        recipe = transformers.Transform1toN(2).recipe
+        recipe = fr.schemas.Transform1toN(2).recipe
         n = constructors.recipe2node(recipe)
         self.assertEqual(n.label, "atomic_recipe_node")
         n = constructors.recipe2node(recipe, "explicit_label")
