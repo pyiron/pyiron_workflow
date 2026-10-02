@@ -49,6 +49,9 @@ Documentation = "https://pyiron-workflow.readthedocs.io"
 Repository = "https://github.com/pyiron/pyiron_workflow"
 
 [project.optional-dependencies]
+drawing = [
+    "flowrep[drawing]",
+]
 executorlib = [
     "executorlib==1.10.3",
 ]
@@ -57,18 +60,18 @@ cluster = [
     "h5py==3.16.0",
     "pyiron_workflow[executorlib]",
 ]
+fleche = [
+    "fleche==0.22.1",
+]
 developer = [
     "rdflib==7.6.0",
+    "pyiron_workflow[drawing]",
+    "pyiron_workflow[executorlib]",
+    "pyiron_workflow[fleche]",
 ]
 notebook = [
     "python-workflow-definition==0.1.5",
     "pyiron_workflow[developer]",
-]
-fleche = [
-    "fleche==0.22.1",
-]
-drawing = [
-    "flowrep[drawing]",
 ]
 
 [tool.hatch.build]
