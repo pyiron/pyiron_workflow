@@ -11,12 +11,31 @@ I.e., make a fresh run config directory for each iteration of input data where t
 caching executors are being leveraged.
 """
 
+import types
+from concurrent import futures
 from typing import ClassVar
 
-import executorlib
-import executorlib.api as exlib_api
+from pyiron_snippets import import_alarm
 
 from pyiron_workflow import execution
+
+with import_alarm.ImportAlarm(
+    "The wrapped executorlib executors require 'executorlib'.", raise_exception=True
+) as _import_alarm:
+    import executorlib
+    import executorlib.api as exlib_api
+
+if _import_alarm.message is not None:
+    # Stand in for the missing executorlib classes so the wrappers below can still be
+    # defined; instantiating them raises via the import alarm
+    executorlib = types.SimpleNamespace(  # type: ignore[assignment]
+        BaseExecutor=futures.Executor,
+        SingleNodeExecutor=futures.Executor,
+        SlurmClusterExecutor=futures.Executor,
+    )
+    exlib_api = types.SimpleNamespace(  # type: ignore[assignment]
+        TestClusterExecutor=futures.Executor
+    )
 
 
 class DedicatedExecutorError(TypeError):
@@ -33,6 +52,10 @@ class ProtectedResourceError(ValueError):
 
 class CacheOverride(executorlib.BaseExecutor):
     cache_directory: ClassVar[str] = "executorlib_cache"
+
+    @_import_alarm
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def submit(self, fn, /, *args, **kwargs):
         """
