@@ -2,11 +2,9 @@
 requires = [
     "hatchling==1.32.4",
     "hatch-vcs==0.5.0",
-    "executorlib",
     "flowrep",
     "pint",
     "pyiron_snippets",
-    "rdflib",
     "semantikon",
     "typeguard",
 ]
