@@ -5,7 +5,6 @@ import typing
 from typing import ClassVar
 
 import flowrep as fr
-import rdflib
 import semantikon
 
 from pyiron_workflow import (
@@ -17,6 +16,9 @@ from pyiron_workflow import (
     type_hinting,
     workflow_node,
 )
+
+if typing.TYPE_CHECKING:
+    import rdflib
 
 
 def _resolve_edge_hints(
