@@ -4,3 +4,4 @@ dependencies:
 - executorlib =1.10.3
 - fleche =0.22.1
 - python-graphviz =0.21
+- rdflib =7.6.0
