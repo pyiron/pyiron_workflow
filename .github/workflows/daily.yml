@@ -12,6 +12,7 @@ jobs:
     uses: pyiron/actions/.github/workflows/tests-and-coverage.yml@actions-4.2.1
     secrets: inherit
     with:
+      tests-env-files: .ci_support/environment.yml .ci_support/environment-developer.yml
       extra-python-paths: tests tests/benchmark tests/integration tests/static tests/unit  # For executorlib
       do-codecov: true
       do-codacy: false
