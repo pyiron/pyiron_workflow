@@ -51,7 +51,7 @@ drawing = [
     "flowrep[drawing]",
 ]
 executorlib = [
-    "executorlib==1.10.3",
+    "executorlib==1.10.4",
 ]
 cluster = [
     "pysqa==1.0.1",
