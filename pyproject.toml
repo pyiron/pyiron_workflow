@@ -54,7 +54,7 @@ executorlib = [
     "executorlib==1.10.3",
 ]
 cluster = [
-    "pysqa==1.0.1",
+    "pysqa==1.1.1",
     "h5py==3.16.0",
     "pyiron_workflow[executorlib]",
 ]
