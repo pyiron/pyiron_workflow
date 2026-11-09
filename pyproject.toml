@@ -59,7 +59,7 @@ cluster = [
     "pyiron_workflow[executorlib]",
 ]
 fleche = [
-    "fleche==0.22.1",
+    "fleche==0.22.4",
 ]
 developer = [
     "rdflib==7.6.0",
