@@ -13,7 +13,7 @@ dependencies:
 - pint =0.25.3
 - pyiron_snippets =1.5.0
 - semantikon =1.4.3
-- typeguard =4.6.0
+- typeguard =4.6.1
 - executorlib =1.10.3
 - fleche =0.22.1
 - python-graphviz =0.21
