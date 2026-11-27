@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: koesterlab/setup-slurm-action@v1
         timeout-minutes: 5
-      - uses: pyiron/actions/cached-miniforge@actions-4.2.1
+      - uses: pyiron/actions/cached-miniforge@actions-4.3.0
         with:
           python-version: '3.12'
           env-files: .ci_support/environment.yml .ci_support/environment-cluster.yml
