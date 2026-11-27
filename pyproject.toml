@@ -30,7 +30,7 @@ classifiers = [
 dependencies = [
     "flowrep==0.6.7",
     "pint==0.25.3",
-    "pyiron_snippets==1.5.0",
+    "pyiron_snippets==1.5.1",
     "semantikon==1.4.3",
     "typeguard==4.6.0",
 ]
